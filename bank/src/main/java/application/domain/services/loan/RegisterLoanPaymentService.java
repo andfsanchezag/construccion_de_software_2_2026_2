@@ -12,7 +12,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -22,14 +24,19 @@ public class RegisterLoanPaymentService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Loan execute(User user, Loan loan, BigDecimal amount) {
-        Loan stored = loanRepositoryPort.findByIdentifier(loan)
-                .orElseThrow(() -> new EntityNotFoundException("Loan"));
+        Optional<Loan> storedOpt = loanRepositoryPort.findByIdentifier(loan);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Loan");
+        }
+        Loan stored = storedOpt.get();
         Operation op = new Operation();
         op.setOperationType(OperationType.LOAN_PAYMENT);
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of("paymentAmount", amount));
+        Map<String, Object> details = new HashMap<>();
+        details.put("paymentAmount", amount);
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

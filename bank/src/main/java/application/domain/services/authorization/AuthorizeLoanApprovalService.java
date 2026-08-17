@@ -3,7 +3,6 @@ package application.domain.services.authorization;
 import application.domain.models.Loan;
 import application.domain.models.User;
 import application.domain.valueobjects.LoanStatus;
-import application.domain.valueobjects.SystemRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -6,6 +6,7 @@ import application.domain.models.Customer;
 import application.domain.models.User;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.valueobjects.CustomerStatus;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +17,11 @@ public class ChangeCustomerStatusService {
     private final CustomerRepositoryPort customerRepositoryPort;
 
     public Customer execute(User requestingUser, Customer customer, CustomerStatus newStatus) {
-        Customer persisted = customerRepositoryPort.findByIdentification(customer)
-                .orElseThrow(() -> new EntityNotFoundException("Customer"));
+        Optional<Customer> persistedOpt = customerRepositoryPort.findByIdentification(customer);
+        if (persistedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Customer");
+        }
+        Customer persisted = persistedOpt.get();
         validateTransition(persisted.getStatus(), newStatus);
         persisted.setStatus(newStatus);
         customerRepositoryPort.update(persisted);

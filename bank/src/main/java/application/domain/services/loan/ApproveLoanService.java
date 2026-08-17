@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,8 +28,11 @@ public class ApproveLoanService {
 
     public Loan execute(User user, Loan loan) {
         authorizeLoanApprovalService.execute(user, loan);
-        Loan stored = loanRepositoryPort.findByIdentifier(loan)
-                .orElseThrow(() -> new EntityNotFoundException("Loan"));
+        Optional<Loan> storedOpt = loanRepositoryPort.findByIdentifier(loan);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Loan");
+        }
+        Loan stored = storedOpt.get();
         stored.setLoanStatus(LoanStatus.APPROVED);
         stored.setApprovalDate(LocalDate.now());
         stored.setApprovedAmount(loan.getApprovedAmount());
@@ -38,12 +43,12 @@ public class ApproveLoanService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "approvedAmount", stored.getApprovedAmount(),
-                "interestRate", stored.getInterestRate(),
-                "previousStatus", LoanStatus.UNDER_REVIEW.getCode(),
-                "newStatus", LoanStatus.APPROVED.getCode()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("approvedAmount", stored.getApprovedAmount());
+        details.put("interestRate", stored.getInterestRate());
+        details.put("previousStatus", LoanStatus.UNDER_REVIEW.getCode());
+        details.put("newStatus", LoanStatus.APPROVED.getCode());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

@@ -13,27 +13,29 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class RejectTransferService {
 
-    private static final Set<TransferStatus> REJECTABLE_STATUSES = Set.of(
-            TransferStatus.PENDING, TransferStatus.WAITING_FOR_APPROVAL
-    );
-
     private final TransferRepositoryPort transferRepositoryPort;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(User user, Transfer transfer) {
-        Transfer stored = transferRepositoryPort.findByIdentifier(transfer)
-                .orElseThrow(() -> new EntityNotFoundException("Transfer"));
-        if (!REJECTABLE_STATUSES.contains(stored.getTransferStatus())) {
-            throw new DomainException("Transfer cannot be rejected from status " + stored.getTransferStatus().getCode());
+        Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Transfer");
         }
-        String previousStatus = stored.getTransferStatus().getCode();
+        Transfer stored = storedOpt.get();
+        TransferStatus currentStatus = stored.getTransferStatus();
+        if (!TransferStatus.PENDING.equals(currentStatus)
+                && !TransferStatus.WAITING_FOR_APPROVAL.equals(currentStatus)) {
+            throw new DomainException("Transfer cannot be rejected from status " + currentStatus.getCode());
+        }
+        String previousStatus = currentStatus.getCode();
         stored.setTransferStatus(TransferStatus.REJECTED);
         transferRepositoryPort.update(stored);
         Operation op = new Operation();
@@ -41,10 +43,10 @@ public class RejectTransferService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "previousStatus", previousStatus,
-                "newStatus", TransferStatus.REJECTED.getCode()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("previousStatus", previousStatus);
+        details.put("newStatus", TransferStatus.REJECTED.getCode());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

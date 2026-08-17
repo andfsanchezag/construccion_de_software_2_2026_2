@@ -5,7 +5,7 @@ import application.domain.models.Customer;
 import application.domain.models.User;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.AuthorizeCustomerOperationService;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,7 +17,10 @@ public class ConsultCustomerService {
 
     public Customer execute(User requestingUser, Customer customer) {
         authorizeCustomerOperationService.execute(requestingUser, customer);
-        return customerRepositoryPort.findByIdentification(customer)
-                .orElseThrow(() -> new EntityNotFoundException("Customer"));
+        Optional<Customer> found = customerRepositoryPort.findByIdentification(customer);
+        if (found.isEmpty()) {
+            throw new EntityNotFoundException("Customer");
+        }
+        return found.get();
     }
 }

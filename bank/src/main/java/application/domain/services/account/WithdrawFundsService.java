@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,8 +27,11 @@ public class WithdrawFundsService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public BankAccount execute(User requestingUser, BankAccount account, BigDecimal amount) {
-        BankAccount stored = bankAccountRepositoryPort.findByIdentifier(account)
-                .orElseThrow(() -> new EntityNotFoundException("BankAccount"));
+        Optional<BankAccount> storedOpt = bankAccountRepositoryPort.findByIdentifier(account);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("BankAccount");
+        }
+        BankAccount stored = storedOpt.get();
         validateCanWithdraw(stored, amount);
         BigDecimal balanceBefore = stored.getCurrentBalance();
         stored.setCurrentBalance(stored.getCurrentBalance().subtract(amount));
@@ -51,10 +56,10 @@ public class WithdrawFundsService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(account);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "amount", amount,
-                "balanceBefore", balanceBefore,
-                "balanceAfter", account.getCurrentBalance()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("amount", amount);
+        details.put("balanceBefore", balanceBefore);
+        details.put("balanceAfter", account.getCurrentBalance());
+        registerOperationAndAuditService.execute(op, details);
     }
 }

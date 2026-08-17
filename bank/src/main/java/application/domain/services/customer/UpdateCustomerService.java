@@ -1,11 +1,11 @@
 package application.domain.services.customer;
 
-import application.domain.exceptions.DomainException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Customer;
 import application.domain.models.User;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.AuthorizeCustomerOperationService;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,19 +18,11 @@ public class UpdateCustomerService {
 
     public Customer execute(User requestingUser, Customer customer) {
         authorizeCustomerOperationService.execute(requestingUser, customer);
-        customerRepositoryPort.findByIdentification(customer)
-                .orElseThrow(() -> new EntityNotFoundException("Customer"));
-        validateIdentificationUniqueness(customer);
+        Optional<Customer> existing = customerRepositoryPort.findByIdentification(customer);
+        if (existing.isEmpty()) {
+            throw new EntityNotFoundException("Customer");
+        }
         customerRepositoryPort.update(customer);
         return customer;
-    }
-
-    private void validateIdentificationUniqueness(Customer customer) {
-        customerRepositoryPort.findByIdentification(customer).ifPresent(existing -> {
-            if (!existing.getIdentification().equals(customer.getIdentification())) {
-                throw new DomainException(
-                        "Identification " + customer.getIdentification() + " is already in use.");
-            }
-        });
     }
 }

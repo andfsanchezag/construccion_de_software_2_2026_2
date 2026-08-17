@@ -1,6 +1,5 @@
 package application.domain.services.customer;
 
-import application.domain.exceptions.InvalidStatusTransitionException;
 import application.domain.models.NaturalCustomer;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.valueobjects.CustomerStatus;
@@ -26,7 +25,8 @@ public class RegisterNaturalCustomerService {
     private void validateAge(NaturalCustomer customer) {
         int age = Period.between(customer.getBirthDate(), LocalDate.now()).getYears();
         if (age < 18) {
-            throw new InvalidStatusTransitionException("UNDERAGE", "ACTIVE");
+            throw new application.domain.exceptions.DomainException(
+                    "Customer must be at least 18 years old.");
         }
     }
 

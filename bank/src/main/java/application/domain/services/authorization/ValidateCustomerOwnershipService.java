@@ -5,6 +5,7 @@ import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.valueobjects.SystemRole;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,8 +22,11 @@ public class ValidateCustomerOwnershipService {
         if (user.getCustomer() == null) {
             throw new UnauthorizedOperationException("User has no associated customer.");
         }
-        BankAccount persisted = bankAccountRepositoryPort.findByIdentifier(account)
-                .orElseThrow(() -> new UnauthorizedOperationException("Bank account not found."));
+        Optional<BankAccount> persistedOpt = bankAccountRepositoryPort.findByIdentifier(account);
+        if (persistedOpt.isEmpty()) {
+            throw new UnauthorizedOperationException("Bank account not found.");
+        }
+        BankAccount persisted = persistedOpt.get();
         if (!persisted.getOwner().getIdentification().equals(user.getCustomer().getIdentification())) {
             throw new UnauthorizedOperationException("User is not the owner of this bank account.");
         }

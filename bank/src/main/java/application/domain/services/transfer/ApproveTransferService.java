@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +26,11 @@ public class ApproveTransferService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(User user, Transfer transfer) {
-        Transfer stored = transferRepositoryPort.findByIdentifier(transfer)
-                .orElseThrow(() -> new EntityNotFoundException("Transfer"));
+        Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Transfer");
+        }
+        Transfer stored = storedOpt.get();
         authorizeTransferApprovalService.execute(user, stored);
         stored.setTransferStatus(TransferStatus.APPROVED);
         stored.setApprovalDate(LocalDateTime.now());
@@ -36,11 +41,11 @@ public class ApproveTransferService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "previousStatus", TransferStatus.WAITING_FOR_APPROVAL.getCode(),
-                "newStatus", TransferStatus.APPROVED.getCode(),
-                "approvalDate", stored.getApprovalDate().toString()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("previousStatus", TransferStatus.WAITING_FOR_APPROVAL.getCode());
+        details.put("newStatus", TransferStatus.APPROVED.getCode());
+        details.put("approvalDate", stored.getApprovalDate().toString());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

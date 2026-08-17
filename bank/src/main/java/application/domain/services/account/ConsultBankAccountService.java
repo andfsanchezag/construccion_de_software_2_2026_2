@@ -4,6 +4,7 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.ports.out.BankAccountRepositoryPort;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +15,10 @@ public class ConsultBankAccountService {
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
 
     public BankAccount execute(User requestingUser, BankAccount account) {
-        return bankAccountRepositoryPort.findByIdentifier(account)
-                .orElseThrow(() -> new EntityNotFoundException("BankAccount"));
+        Optional<BankAccount> found = bankAccountRepositoryPort.findByIdentifier(account);
+        if (found.isEmpty()) {
+            throw new EntityNotFoundException("BankAccount");
+        }
+        return found.get();
     }
 }

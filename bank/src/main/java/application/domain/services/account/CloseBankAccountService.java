@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +26,11 @@ public class CloseBankAccountService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public BankAccount execute(User requestingUser, BankAccount account) {
-        BankAccount stored = bankAccountRepositoryPort.findByIdentifier(account)
-                .orElseThrow(() -> new EntityNotFoundException("BankAccount"));
+        Optional<BankAccount> storedOpt = bankAccountRepositoryPort.findByIdentifier(account);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("BankAccount");
+        }
+        BankAccount stored = storedOpt.get();
         validateCanClose(stored);
         stored.setAccountStatus(AccountStatus.CLOSED);
         bankAccountRepositoryPort.update(stored);
@@ -34,7 +39,9 @@ public class CloseBankAccountService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(requestingUser);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of("finalBalance", stored.getCurrentBalance()));
+        Map<String, Object> details = new HashMap<>();
+        details.put("finalBalance", stored.getCurrentBalance());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 

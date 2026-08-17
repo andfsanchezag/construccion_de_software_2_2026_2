@@ -1,10 +1,8 @@
 package application.domain.ports.out;
 
-import application.domain.models.User;
-
 public interface PasswordServicePort {
 
-    boolean matches(User user);
+    boolean matches(String rawPassword, String encodedPassword);
 
-    String encrypt(User user);
+    String encrypt(String rawPassword);
 }

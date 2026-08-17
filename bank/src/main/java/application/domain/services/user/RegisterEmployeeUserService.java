@@ -10,19 +10,9 @@ import application.domain.valueobjects.UserStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Set;
-
 @Service
 @RequiredArgsConstructor
 public class RegisterEmployeeUserService {
-
-    private static final Set<SystemRole> EMPLOYEE_ROLES = Set.of(
-            SystemRole.TELLER_EMPLOYEE,
-            SystemRole.COMMERCIAL_EMPLOYEE,
-            SystemRole.BUSINESS_OPERATOR,
-            SystemRole.BUSINESS_SUPERVISOR,
-            SystemRole.INTERNAL_ANALYST
-    );
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordServicePort passwordServicePort;
@@ -32,15 +22,20 @@ public class RegisterEmployeeUserService {
         validateInternalAnalystAuthorizationService.execute(requestingUser);
         validateEmployeeRole(employee);
         validateUsernameUniqueness(employee);
-        String securePassword = passwordServicePort.encrypt(employee);
+        String securePassword = passwordServicePort.encrypt(employee.getPassword());
         employee.setPassword(securePassword);
         employee.setStatus(UserStatus.ACTIVE);
         return userRepositoryPort.save(employee);
     }
 
     private void validateEmployeeRole(User employee) {
-        if (!EMPLOYEE_ROLES.contains(employee.getRole())) {
-            throw new DomainException("Role " + employee.getRole().getCode() + " is not a valid employee role.");
+        SystemRole role = employee.getRole();
+        if (!SystemRole.TELLER_EMPLOYEE.equals(role)
+                && !SystemRole.COMMERCIAL_EMPLOYEE.equals(role)
+                && !SystemRole.BUSINESS_OPERATOR.equals(role)
+                && !SystemRole.BUSINESS_SUPERVISOR.equals(role)
+                && !SystemRole.INTERNAL_ANALYST.equals(role)) {
+            throw new DomainException("Role " + role.getCode() + " is not a valid employee role.");
         }
     }
 

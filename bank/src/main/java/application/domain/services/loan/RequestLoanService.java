@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,12 +28,16 @@ public class RequestLoanService {
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    public Loan execute(Loan loan) {
-        customerRepositoryPort.findByIdentification(loan.getApplicant())
-                .orElseThrow(() -> new EntityNotFoundException("Loan applicant"));
+    public Loan execute(User user, Loan loan) {
+        Optional<application.domain.models.Customer> applicantOpt = customerRepositoryPort.findByIdentification(loan.getApplicant());
+        if (applicantOpt.isEmpty()) {
+            throw new EntityNotFoundException("Loan applicant");
+        }
         if (loan.getDestinationAccount() != null) {
-            bankAccountRepositoryPort.findByIdentifier(loan.getDestinationAccount())
-                    .orElseThrow(() -> new EntityNotFoundException("Destination account"));
+            Optional<application.domain.models.BankAccount> accountOpt = bankAccountRepositoryPort.findByIdentifier(loan.getDestinationAccount());
+            if (accountOpt.isEmpty()) {
+                throw new EntityNotFoundException("Destination account");
+            }
         }
         validateRequestedAmount(loan);
         loan.setLoanStatus(LoanStatus.UNDER_REVIEW);
@@ -39,11 +45,12 @@ public class RequestLoanService {
         Operation op = new Operation();
         op.setOperationType(OperationType.LOAN_APPLICATION);
         op.setExecutionDate(LocalDateTime.now());
+        op.setPerformedBy(user);
         op.setAffectedProduct(saved);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "requestedAmount", loan.getRequestedAmount(),
-                "loanType", loan.getLoanType().getCode()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("requestedAmount", loan.getRequestedAmount());
+        details.put("loanType", loan.getLoanType().getCode());
+        registerOperationAndAuditService.execute(op, details);
         return saved;
     }
 

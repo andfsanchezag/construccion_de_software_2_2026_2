@@ -16,7 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,20 +29,29 @@ public class ExecuteTransferService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(User user, Transfer transfer) {
-        Transfer stored = transferRepositoryPort.findByIdentifier(transfer)
-                .orElseThrow(() -> new EntityNotFoundException("Transfer"));
+        Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Transfer");
+        }
+        Transfer stored = storedOpt.get();
         if (!TransferStatus.APPROVED.equals(stored.getTransferStatus())) {
             throw new DomainException("Only approved transfers can be executed.");
         }
-        BankAccount source = bankAccountRepositoryPort.findByIdentifier(stored.getSourceAccount())
-                .orElseThrow(() -> new EntityNotFoundException("Source account"));
-        BankAccount destination = bankAccountRepositoryPort.findByIdentifier(stored.getDestinationAccount())
-                .orElseThrow(() -> new EntityNotFoundException("Destination account"));
+        Optional<BankAccount> sourceOpt = bankAccountRepositoryPort.findByIdentifier(stored.getSourceAccount());
+        if (sourceOpt.isEmpty()) {
+            throw new EntityNotFoundException("Source account");
+        }
+        BankAccount source = sourceOpt.get();
+        Optional<BankAccount> destinationOpt = bankAccountRepositoryPort.findByIdentifier(stored.getDestinationAccount());
+        if (destinationOpt.isEmpty()) {
+            throw new EntityNotFoundException("Destination account");
+        }
+        BankAccount destination = destinationOpt.get();
         if (source.getCurrentBalance().compareTo(stored.getAmount()) < 0) {
             throw new InsufficientBalanceException();
         }
-        var balanceBeforeOrigin = source.getCurrentBalance();
-        var balanceBeforeDestination = destination.getCurrentBalance();
+        BigDecimal balanceBeforeOrigin = source.getCurrentBalance();
+        BigDecimal balanceBeforeDestination = destination.getCurrentBalance();
         source.setCurrentBalance(source.getCurrentBalance().subtract(stored.getAmount()));
         destination.setCurrentBalance(destination.getCurrentBalance().add(stored.getAmount()));
         bankAccountRepositoryPort.update(source);
@@ -52,13 +63,13 @@ public class ExecuteTransferService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "amount", stored.getAmount(),
-                "balanceBeforeOrigin", balanceBeforeOrigin,
-                "balanceAfterOrigin", source.getCurrentBalance(),
-                "balanceBeforeDestination", balanceBeforeDestination,
-                "balanceAfterDestination", destination.getCurrentBalance()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("amount", stored.getAmount());
+        details.put("balanceBeforeOrigin", balanceBeforeOrigin);
+        details.put("balanceAfterOrigin", source.getCurrentBalance());
+        details.put("balanceBeforeDestination", balanceBeforeDestination);
+        details.put("balanceAfterDestination", destination.getCurrentBalance());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,8 +27,10 @@ public class OpenBankAccountService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public BankAccount execute(User requestingUser, BankAccount account) {
-        customerRepositoryPort.findByIdentification(account.getOwner())
-                .orElseThrow(() -> new EntityNotFoundException("Account owner"));
+        Optional<application.domain.models.Customer> ownerOpt = customerRepositoryPort.findByIdentification(account.getOwner());
+        if (ownerOpt.isEmpty()) {
+            throw new EntityNotFoundException("Account owner");
+        }
         account.setAccountStatus(AccountStatus.ACTIVE);
         account.setOpeningDate(LocalDate.now());
         BankAccount saved = bankAccountRepositoryPort.save(account);
@@ -40,6 +44,8 @@ public class OpenBankAccountService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(account);
-        registerOperationAndAuditService.execute(op, Map.of("identifier", account.getIdentifier()));
+        Map<String, Object> details = new HashMap<>();
+        details.put("identifier", account.getIdentifier());
+        registerOperationAndAuditService.execute(op, details);
     }
 }

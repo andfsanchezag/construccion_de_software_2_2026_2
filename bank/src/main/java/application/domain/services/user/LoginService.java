@@ -1,7 +1,6 @@
 package application.domain.services.user;
 
 import application.domain.exceptions.InvalidCredentialsException;
-import application.domain.exceptions.EntityNotFoundException;
 import application.domain.exceptions.DomainException;
 import application.domain.models.User;
 import application.domain.ports.out.JwtServicePort;
@@ -10,6 +9,8 @@ import application.domain.ports.out.UserRepositoryPort;
 import application.domain.valueobjects.UserStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,25 +21,19 @@ public class LoginService {
     private final JwtServicePort jwtServicePort;
 
     public String execute(User user) {
-        User stored = userRepositoryPort.findByUsername(user)
-                .orElseThrow(InvalidCredentialsException::new);
+        Optional<User> storedOpt = userRepositoryPort.findByUsername(user);
+        if (storedOpt.isEmpty()) {
+            throw new InvalidCredentialsException();
+        }
+        User stored = storedOpt.get();
 
-        User candidate = buildCandidateForValidation(user, stored);
-        if (!passwordServicePort.matches(candidate)) {
+        if (!passwordServicePort.matches(user.getPassword(), stored.getPassword())) {
             throw new InvalidCredentialsException();
         }
 
         validateUserStatus(stored);
 
         return jwtServicePort.generateToken(stored);
-    }
-
-    // Builds a User holding the plain-text password alongside the stored hash for comparison.
-    private User buildCandidateForValidation(User submitted, User stored) {
-        User candidate = new User();
-        candidate.setPassword(submitted.getPassword());
-        candidate.setUsername(stored.getUsername());
-        return candidate;
     }
 
     private void validateUserStatus(User stored) {

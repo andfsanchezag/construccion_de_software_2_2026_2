@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,8 +27,11 @@ public class RejectLoanService {
 
     public Loan execute(User user, Loan loan) {
         validateInternalAnalystAuthorizationService.execute(user);
-        Loan stored = loanRepositoryPort.findByIdentifier(loan)
-                .orElseThrow(() -> new EntityNotFoundException("Loan"));
+        Optional<Loan> storedOpt = loanRepositoryPort.findByIdentifier(loan);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Loan");
+        }
+        Loan stored = storedOpt.get();
         String previousStatus = stored.getLoanStatus().getCode();
         stored.setLoanStatus(LoanStatus.REJECTED);
         loanRepositoryPort.update(stored);
@@ -35,10 +40,10 @@ public class RejectLoanService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "previousStatus", previousStatus,
-                "newStatus", LoanStatus.REJECTED.getCode()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("previousStatus", previousStatus);
+        details.put("newStatus", LoanStatus.REJECTED.getCode());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

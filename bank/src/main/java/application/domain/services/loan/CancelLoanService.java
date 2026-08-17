@@ -13,27 +13,30 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class CancelLoanService {
 
-    private static final Set<LoanStatus> CANCELLABLE_STATUSES = Set.of(
-            LoanStatus.UNDER_REVIEW, LoanStatus.APPROVED, LoanStatus.OVERDUE
-    );
-
     private final LoanRepositoryPort loanRepositoryPort;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Loan execute(User user, Loan loan) {
-        Loan stored = loanRepositoryPort.findByIdentifier(loan)
-                .orElseThrow(() -> new EntityNotFoundException("Loan"));
-        if (!CANCELLABLE_STATUSES.contains(stored.getLoanStatus())) {
-            throw new DomainException("Loan with status " + stored.getLoanStatus().getCode() + " cannot be cancelled.");
+        Optional<Loan> storedOpt = loanRepositoryPort.findByIdentifier(loan);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Loan");
         }
-        String previousStatus = stored.getLoanStatus().getCode();
+        Loan stored = storedOpt.get();
+        LoanStatus currentStatus = stored.getLoanStatus();
+        if (!LoanStatus.UNDER_REVIEW.equals(currentStatus)
+                && !LoanStatus.APPROVED.equals(currentStatus)
+                && !LoanStatus.OVERDUE.equals(currentStatus)) {
+            throw new DomainException("Loan with status " + currentStatus.getCode() + " cannot be cancelled.");
+        }
+        String previousStatus = currentStatus.getCode();
         stored.setLoanStatus(LoanStatus.CANCELLED);
         loanRepositoryPort.update(stored);
         Operation op = new Operation();
@@ -41,10 +44,10 @@ public class CancelLoanService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "previousStatus", previousStatus,
-                "newStatus", LoanStatus.CANCELLED.getCode()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("previousStatus", previousStatus);
+        details.put("newStatus", LoanStatus.CANCELLED.getCode());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 }

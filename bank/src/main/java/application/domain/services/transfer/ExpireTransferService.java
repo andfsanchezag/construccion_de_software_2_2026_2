@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,22 +26,26 @@ public class ExpireTransferService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(Transfer transfer) {
-        Transfer stored = transferRepositoryPort.findByIdentifier(transfer)
-                .orElseThrow(() -> new EntityNotFoundException("Transfer"));
+        Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Transfer");
+        }
+        Transfer stored = storedOpt.get();
         if (!TransferStatus.WAITING_FOR_APPROVAL.equals(stored.getTransferStatus())) {
             throw new DomainException("Only transfers awaiting approval can expire.");
         }
         validateExpirationWindow(stored);
         stored.setTransferStatus(TransferStatus.EXPIRED);
         transferRepositoryPort.update(stored);
+        LocalDateTime expirationDate = LocalDateTime.now();
         Operation op = new Operation();
         op.setOperationType(OperationType.TRANSFER_EXPIRATION);
-        op.setExecutionDate(LocalDateTime.now());
+        op.setExecutionDate(expirationDate);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "reason", "Approval window expired",
-                "expirationDate", LocalDateTime.now().toString()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("reason", "Approval window expired");
+        details.put("expirationDate", expirationDate.toString());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 

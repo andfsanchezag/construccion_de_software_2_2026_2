@@ -17,7 +17,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,11 +30,17 @@ public class DisburseLoanService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Loan execute(User user, Loan loan) {
-        Loan stored = loanRepositoryPort.findByIdentifier(loan)
-                .orElseThrow(() -> new EntityNotFoundException("Loan"));
+        Optional<Loan> storedOpt = loanRepositoryPort.findByIdentifier(loan);
+        if (storedOpt.isEmpty()) {
+            throw new EntityNotFoundException("Loan");
+        }
+        Loan stored = storedOpt.get();
         validateCanDisburse(stored);
-        BankAccount destination = bankAccountRepositoryPort.findByIdentifier(stored.getDestinationAccount())
-                .orElseThrow(() -> new EntityNotFoundException("Destination account"));
+        Optional<BankAccount> destinationOpt = bankAccountRepositoryPort.findByIdentifier(stored.getDestinationAccount());
+        if (destinationOpt.isEmpty()) {
+            throw new EntityNotFoundException("Destination account");
+        }
+        BankAccount destination = destinationOpt.get();
         validateDestinationAccount(stored, destination);
         destination.setCurrentBalance(destination.getCurrentBalance().add(stored.getApprovedAmount()));
         bankAccountRepositoryPort.update(destination);
@@ -44,10 +52,10 @@ public class DisburseLoanService {
         op.setExecutionDate(LocalDateTime.now());
         op.setPerformedBy(user);
         op.setAffectedProduct(stored);
-        registerOperationAndAuditService.execute(op, Map.of(
-                "approvedAmount", stored.getApprovedAmount(),
-                "destinationAccount", destination.getIdentifier()
-        ));
+        Map<String, Object> details = new HashMap<>();
+        details.put("approvedAmount", stored.getApprovedAmount());
+        details.put("destinationAccount", destination.getIdentifier());
+        registerOperationAndAuditService.execute(op, details);
         return stored;
     }
 

@@ -131,15 +131,20 @@ This class cannot be instantiated directly.
 
 ## Attributes
 
-| Attribute | Type           | Description                                                                |
-| --------- | -------------- | -------------------------------------------------------------------------- |
-| status    | CustomerStatus | Current operational status of the customer within the banking institution. |
+| Attribute | Type                | Description                                                                |
+| --------- | ------------------- | -------------------------------------------------------------------------- |
+| status    | CustomerStatus      | Current operational status of the customer within the banking institution. |
+| accounts  | List\<BankAccount\> | Banking accounts owned by the customer. Empty by default.                  |
+| loans     | List\<Loan\>        | Loans requested or owned by the customer. Empty by default.                |
+| transfers | List\<Transfer\>    | Transfers involving accounts owned by the customer. Empty by default.      |
 
 ## Relationships
 
-* A customer may own one or more `BankAccount` instances.
-* A customer may request or own one or more `Loan` instances.
+* A customer owns zero or more `BankAccount` instances, held in `accounts`.
+* A customer requests or owns zero or more `Loan` instances, held in `loans`.
+* A customer is associated with zero or more `Transfer` instances through their accounts, held in `transfers`.
 * A customer may be associated with one or more `User` instances when system access is required.
+* `accounts`, `loans`, and `transfers` are not populated by default. They are loaded on demand by the **Consult Customer Products** service.
 
 ---
 
