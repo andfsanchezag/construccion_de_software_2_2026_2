@@ -3,6 +3,7 @@ package application.domain.services.user;
 import application.domain.exceptions.DomainException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.User;
+import application.domain.models.Customer;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.PasswordServicePort;
 import application.domain.ports.out.UserRepositoryPort;

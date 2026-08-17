@@ -1,3 +1,5 @@
+package application.domain.services.customer;
+
 import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.models.Loan;
@@ -37,20 +39,6 @@ public class ConsultCustomerProductsService {
 
         return new CustomerProducts(accounts, loans, transfers);
     }
-
-    @Getter
-    public static final class CustomerProducts {
-        private final List<BankAccount> accounts;
-        private final List<Loan> loans;
-        private final List<Transfer> transfers;
-
-        public CustomerProducts(List<BankAccount> accounts, List<Loan> loans, List<Transfer> transfers) {
-            this.accounts = accounts;
-            this.loans = loans;
-            this.transfers = transfers;
-        }
-    }
-}
 
     @Getter
     public static final class CustomerProducts {

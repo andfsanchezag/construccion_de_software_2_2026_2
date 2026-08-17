@@ -4,6 +4,7 @@ import application.domain.exceptions.DomainException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
+import application.domain.models.User;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.LoanRepositoryPort;
