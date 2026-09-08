@@ -1,165 +1,841 @@
 # Bank Account Services
 
-## Introduction
+## 1. Introduction
 
-This document defines the services belonging to the **Bank Account** subdomain of the Banking Information Management System.
+This document defines the services belonging to the **Bank Account Management** subdomain of the Banking Information Management System (BIMS).
 
-The services in this subdomain are responsible for managing the lifecycle and business operations associated with bank accounts.
+The Bank Account Management subdomain is responsible for managing the lifecycle and business operations associated with bank accounts.
 
-The main responsibilities include:
+The main business capabilities are:
 
-- Opening bank accounts.
-- Consulting bank accounts.
-- Depositing funds.
-- Withdrawing funds.
-- Blocking accounts.
-- Unblocking accounts.
-- Closing accounts.
-- Managing account balances.
-- Validating account ownership.
-- Validating account status.
-- Registering account-related operations for auditing.
+* Open Bank Account.
+* Consult Bank Account.
+* Consult Account Balance.
+* Deposit Funds.
+* Withdraw Funds.
+* Block Bank Account.
+* Unblock Bank Account.
+* Close Bank Account.
 
 Bank accounts are represented by the `BankAccount` Domain Model and inherit from `BankingProduct`.
 
 ```text
 BankingProduct
-      │
-      └── BankAccount
-````
+      |
+      +-- BankAccount
+```
 
-Every significant operation performed over a bank account must be represented as a business `Operation` and, when required by the business rules, recorded in the `AuditLog`.
+A Bank Account is owned by a `Customer`.
+
+```text
+Customer
+    |
+    | owns
+    v
+BankAccount
+```
+
+The ownership relationship must be explicitly validated whenever an operation requires access to a customer's Bank Account.
+
+Every significant state-changing operation performed on a Bank Account must generate a business `Operation` and the corresponding `AuditLog` according to the audit rules of the system.
 
 ---
 
-# Domain Model Context
+# 2. Domain Model Context
 
-A `BankAccount` represents a banking product owned by a `Customer`.
+## 2.1 BankAccount
+
+`BankAccount` is a Domain Model representing a banking product.
 
 Conceptually:
 
 ```text
 BankingProduct
-      │
-      └── BankAccount
-             │
-             ├── accountType
-             ├── owner : Customer
-             ├── currentBalance
-             ├── currency
-             ├── accountStatus
-             └── openingDate
+      |
+      +-- BankAccount
+             |
+             +-- accountType
+             +-- owner : Customer
+             +-- currentBalance
+             +-- currency
+             +-- accountStatus
+             +-- openingDate
 ```
 
-The account owner must be represented using the `Customer` Domain Model.
+Common attributes that belong to `BankingProduct` must not be duplicated in `BankAccount`.
 
-The relationship must not be represented as a primitive identifier such as:
-
-```text
-String customerId
-```
-
-Instead:
-
-```text
-Customer owner
-```
-
-The persistence adapter is responsible for translating this Domain relationship into the database representation.
+The exact inheritance structure must be defined by the Domain Model.
 
 ---
 
-# Service Design Principles
+## 2.2 Bank Account Owner
 
-## Domain Model Parameters
+The owner of a Bank Account is represented by a `Customer` Domain Model.
 
-All Bank Account services and Input Ports must receive Domain Models or Value Objects.
-
-They must never receive:
-
-* `String` identifiers.
-* Primitive identifiers.
-* Individual attributes as substitutes for Domain Models.
-* Request DTOs.
-* Persistence entities.
-
-### Incorrect
+Correct:
 
 ```java
-openAccount(
+BankAccount.owner : Customer
+```
+
+Incorrect:
+
+```java
+BankAccount.ownerId : String
+```
+
+The Domain Model must represent the business relationship rather than reducing it to a primitive identifier.
+
+Persistence adapters are responsible for translating this relationship into the persistence representation.
+
+---
+
+# 3. User, Customer, and BankAccount Relationship
+
+Bank Account operations involve three different concepts:
+
+```text
+User
+ |
+ | performs operation
+ v
+Customer
+ |
+ | owns
+ v
+BankAccount
+```
+
+These concepts must not be treated as interchangeable.
+
+### User
+
+The `User` represents the actor requesting or performing the operation.
+
+### Customer
+
+The `Customer` represents the banking customer associated with the operation.
+
+### BankAccount
+
+The `BankAccount` represents the banking product affected by the operation.
+
+Therefore:
+
+```text
+User != Customer
+Customer != BankAccount
+User != BankAccount
+```
+
+A Customer User may be associated with a Customer, while an Employee User may operate on behalf of the bank according to their role and permissions.
+
+---
+
+# 4. Service Design Principle
+
+Each Bank Account service represents one cohesive business operation.
+
+A service is responsible for determining and validating **all business conditions necessary to execute that operation correctly**.
+
+The architecture must not artificially fragment one operation into multiple small services.
+
+For example, it is acceptable for:
+
+```text
+WithdrawFundsService
+```
+
+to perform:
+
+```text
+User validation
+Customer validation
+Authorization validation
+Ownership validation
+BankAccount validation
+Account status validation
+Amount validation
+Balance validation
+Withdrawal execution
+Persistence
+Operation registration
+Audit registration
+```
+
+through private methods or cohesive collaborators.
+
+It is not necessary to create:
+
+```text
+ValidateUserService
+ValidateCustomerService
+ValidateOwnershipService
+ValidateAccountStatusService
+ValidateBalanceService
+ValidateWithdrawalAmountService
+```
+
+merely to separate validations.
+
+The important requirement is:
+
+> The application service must prevent the business operation from executing unless every required business condition is satisfied.
+
+---
+
+# 5. Standard Application Service Pattern
+
+State-changing Bank Account services should generally follow this pattern:
+
+```text
+Input Domain Models / Value Objects
+                |
+                v
+Retrieve authoritative state
+                |
+                v
+Validate requesting User
+                |
+                v
+Validate Customer
+                |
+                v
+Validate User-Customer relationship
+                |
+                v
+Validate Customer-Product relationship
+                |
+                v
+Validate BankAccount
+                |
+                v
+Validate Account Status
+                |
+                v
+Validate operation-specific business rules
+                |
+                v
+Execute Domain behavior
+                |
+                v
+Persist through Output Port
+                |
+                v
+Register Operation
+                |
+                v
+Register Audit
+                |
+                v
+Return result
+```
+
+Not every service requires every validation shown above.
+
+Each service must apply the validations relevant to its operation.
+
+---
+
+# 6. Input Contract
+
+Bank Account application services must operate using Domain Models and Value Objects.
+
+They must not expose REST DTOs or persistence entities as application contracts.
+
+Primitive identifiers must not be used as the primary application-level representation when the domain already provides a corresponding Domain Model or Value Object.
+
+Incorrect:
+
+```java
+withdraw(
+    String accountId,
     String customerId,
-    AccountType accountType,
-    Currency currency
+    String userId,
+    BigDecimal amount
 );
 ```
 
-### Correct
+Preferred:
 
 ```java
-openAccount(BankAccount bankAccount);
+withdraw(
+    User requestingUser,
+    Customer customer,
+    BankAccount account,
+    Money amount
+);
 ```
 
-The same principle applies to every service.
+The exact signature may vary according to the project's domain model, but the architectural principle is mandatory.
 
 ---
 
-# External Information
+# 7. Value Objects
 
-A service must validate information directly against the Domain Model whenever possible.
+Amounts of money should preferably be represented through a `Money` Value Object.
 
-For example, the following information can be validated without consulting the database:
+Conceptually:
+
+```text
+Money
+ |
+ +-- amount
+ +-- currency
+```
+
+Instead of:
+
+```java
+BigDecimal amount
+```
+
+the application may use:
+
+```java
+Money amount
+```
+
+This allows monetary invariants to be encapsulated in the Domain.
+
+Examples of Money rules include:
+
+```text
+amount != null
+amount > 0
+currency != null
+```
+
+Currency compatibility between the transaction and the Bank Account must be validated whenever the domain supports multiple currencies.
+
+---
+
+# 8. Authoritative State
+
+Domain Models received by a service represent the operation context, but they must not automatically be considered the authoritative persisted state.
+
+For state-changing operations, the service must retrieve the current Bank Account state through the corresponding Output Port whenever current state is required.
+
+For example:
+
+```text
+Input BankAccount
+       |
+       v
+BankAccountRepositoryPort
+       |
+       v
+Authoritative BankAccount
+       |
+       v
+Business Validation
+       |
+       v
+Domain Operation
+```
+
+This is particularly important for:
+
+* Current balance.
+* Account status.
+* Account ownership.
+* Product existence.
+* Other persisted business state.
+
+The service must not trust a caller-provided balance or account status when the current persisted state is required.
+
+---
+
+# 9. External Information
+
+Information already contained in a Domain Model must be validated from that Domain Model whenever possible.
+
+For example:
 
 ```text
 BankAccount
-├── accountType
-├── owner
-├── currentBalance
-├── currency
-├── accountStatus
-└── openingDate
+ |
+ +-- accountType
+ +-- owner
+ +-- currentBalance
+ +-- currency
+ +-- accountStatus
+ +-- openingDate
 ```
 
-If information external to the Domain Model is required, the service must use an Output Port.
+No external call is required merely to validate information already available and authoritative in the Domain Model.
+
+However, external information required for a business decision must be obtained through an Output Port.
 
 Example:
 
 ```text
-BankAccount
-     │
-     ▼
 Bank Account Service
-     │
-     ▼
-CustomerRepository
-     │
-     ▼
-Persistence Adapter
-     │
-     ▼
-Database
+        |
+        v
+CustomerRepositoryPort
+        |
+        v
+Customer Adapter
+        |
+        v
+External Persistence
 ```
 
-The service must never access the database directly.
+Application services must never access the database directly.
 
 ---
 
-# 1. Open Bank Account
+# 10. User Validation
 
-## Description
+When an operation is performed by a User, the service must validate the User according to the business requirements of that operation.
 
-Creates a new `BankAccount` associated with a `Customer`.
+Relevant validations may include:
 
-The operation establishes the account as a banking product and initializes its business state.
+* User exists.
+* User is active.
+* User is authorized.
+* User has the required role or permission.
+* Customer User is associated with the relevant Customer.
+* Employee User is authorized to perform the operation.
+
+The service must not assume:
+
+```text
+User exists
+    =
+User is authorized
+```
+
+Authentication and authorization are different concepts.
+
+The User represents the actor, while the Customer represents the banking customer.
 
 ---
 
-## Input
+# 11. Customer Validation
+
+When a Bank Account operation involves a Customer, the service must validate the Customer according to the business requirements.
+
+Relevant validations may include:
+
+* Customer exists.
+* Customer is active or otherwise eligible.
+* Customer is allowed to perform the operation.
+* Customer is the owner of the Bank Account when ownership is required.
+
+The service must not assume:
+
+```text
+Customer exists
+    =
+Customer is eligible
+```
+
+When authoritative Customer information is required, it must be obtained through:
+
+```text
+CustomerRepositoryPort
+```
+
+---
+
+# 12. Customer-BankAccount Ownership
+
+Ownership validation is mandatory whenever the operation is restricted to the account owner.
+
+The service must explicitly validate:
+
+```text
+Customer
+    |
+    | owns
+    v
+BankAccount
+```
+
+The service must not assume ownership merely because:
+
+* A Customer was supplied as an input.
+* A Bank Account was supplied as an input.
+* Both objects were provided in the same request.
+* Their identifiers were supplied by the caller.
+
+The reference implementation represented by `WithdrawFundsService` establishes this principle.
+
+The service retrieves the authoritative Bank Account and Customer and validates that the Customer corresponds to the Bank Account owner.
+
+The important business rule is:
+
+> A customer must not be allowed to operate on a Bank Account that belongs to another customer.
+
+---
+
+# 13. Product Access
+
+Existence, ownership, and authorization are different validations.
+
+The following is insufficient:
+
+```text
+BankAccount exists
++
+Customer exists
+=
+Customer can operate on BankAccount
+```
+
+The service must establish the complete relationship:
+
+```text
+Requesting User
+       |
+       v
+Customer
+       |
+       | owns
+       v
+BankAccount
+```
+
+For employee operations, authorization may instead follow:
+
+```text
+Requesting User
+       |
+       v
+Employee Role / Permission
+       |
+       v
+Authorized Customer
+       |
+       v
+BankAccount
+```
+
+The applicable rule depends on the operation and the user's role.
+
+---
+
+# 14. Account Status
+
+The conceptual Bank Account statuses are:
+
+```text
+ACTIVE
+BLOCKED
+CLOSED
+```
+
+The Domain is responsible for defining and protecting valid status transitions.
+
+The application service must validate that the requested operation is allowed for the current status.
+
+Example:
+
+```text
+ACTIVE
+  |
+  +-- deposit allowed
+  +-- withdrawal allowed
+  +-- block allowed
+
+BLOCKED
+  |
+  +-- deposit prohibited
+  +-- withdrawal prohibited
+  +-- unblock allowed
+
+CLOSED
+  |
+  +-- deposit prohibited
+  +-- withdrawal prohibited
+  +-- unblock prohibited
+```
+
+The exact business matrix must follow the domain requirements.
+
+---
+
+# 15. Domain Behavior
+
+Bank Account state must be changed through valid Domain behavior.
+
+Preferred:
+
+```java
+bankAccount.deposit(money);
+bankAccount.withdraw(money);
+bankAccount.block();
+bankAccount.unblock();
+bankAccount.close();
+```
+
+Avoid treating unrestricted setters as business behavior:
+
+```java
+bankAccount.setCurrentBalance(...);
+bankAccount.setAccountStatus(...);
+```
+
+The Domain Model should protect its own invariants.
+
+The application service coordinates the operation:
+
+```text
+Retrieve
+   ->
+Validate
+   ->
+Execute Domain Behavior
+   ->
+Persist
+```
+
+---
+
+# 16. Operation and Audit
+
+Bank Account operations that modify business state must generate an `Operation`.
+
+Examples include:
+
+```text
+ACCOUNT_OPENING
+DEPOSIT
+WITHDRAWAL
+ACCOUNT_BLOCK
+ACCOUNT_UNBLOCK
+ACCOUNT_CLOSURE
+```
+
+The exact operation types must match the project's domain model.
+
+An `Operation` should identify, as applicable:
+
+```text
+operationType
+executionDate
+performedBy
+affectedProduct
+operation-specific details
+```
+
+Relevant operations must also generate an `AuditLog`.
+
+The audit record should provide sufficient information to determine:
+
+```text
+who performed the operation
+what operation was performed
+which product was affected
+when it occurred
+relevant operation details
+```
+
+---
+
+# 17. Transactional Consistency
+
+State-changing operations must maintain consistency between:
+
+```text
+BankAccount
+Operation
+AuditLog
+```
+
+The following sequence is potentially unsafe:
+
+```text
+Update BankAccount
+        |
+        v
+Register Operation
+        |
+        X
+Register Audit fails
+```
+
+This could result in:
+
+```text
+BankAccount updated
+Operation persisted
+Audit missing
+```
+
+The implementation must use the appropriate transaction or consistency mechanism so that required state changes and traceability records are handled consistently.
+
+This requirement does not imply creating additional business services.
+
+---
+
+# 18. Input Ports
+
+The Bank Account subdomain exposes the following Input Ports:
+
+```text
+OpenBankAccountUseCase
+ConsultBankAccountUseCase
+ConsultAccountBalanceUseCase
+DepositFundsUseCase
+WithdrawFundsUseCase
+BlockBankAccountUseCase
+UnblockBankAccountUseCase
+CloseBankAccountUseCase
+```
+
+Account ownership validation is a business responsibility of the applicable service.
+
+It does not need to be exposed as an independent business use case merely because ownership is a validation.
+
+Therefore, the following should not automatically be treated as a separate application service:
+
+```text
+ValidateAccountOwnershipUseCase
+```
+
+The ownership rule is normally executed inside the service requiring it.
+
+---
+
+# 19. Output Ports
+
+The Bank Account subdomain may use the following Output Ports:
+
+```text
+BankAccountRepositoryPort
+CustomerRepositoryPort
+OperationRepositoryPort
+AuditRepositoryPort
+```
+
+These interfaces belong to the application/domain boundary.
+
+Their implementations belong to adapters.
+
+---
+
+# 20. BankAccountRepositoryPort
+
+`BankAccountRepositoryPort` is responsible for Bank Account persistence and retrieval.
+
+Conceptually:
+
+```java
+public interface BankAccountRepositoryPort {
+
+    Optional<BankAccount> findByIdentifier(BankAccount bankAccount);
+
+    BankAccount save(BankAccount bankAccount);
+
+    BankAccount update(BankAccount bankAccount);
+}
+```
+
+The exact method names and signatures may vary.
+
+The port must operate using Domain Models.
+
+The persistence implementation must remain hidden behind the port.
+
+---
+
+# 21. CustomerRepositoryPort
+
+`CustomerRepositoryPort` provides authoritative Customer information when required by Bank Account operations.
+
+Conceptually:
+
+```java
+public interface CustomerRepositoryPort {
+
+    Optional<Customer> findByIdentification(Customer customer);
+}
+```
+
+The exact contract must follow the Customer subdomain specification.
+
+The Bank Account service may use this port to validate:
+
+* Customer existence.
+* Current Customer state.
+* Customer eligibility.
+* Customer relationship with the Bank Account.
+
+---
+
+# 22. OperationRepositoryPort
+
+`OperationRepositoryPort` is responsible for Operation persistence.
+
+Conceptually:
+
+```text
+Bank Account Service
+        |
+        v
+Operation
+        |
+        v
+OperationRepositoryPort
+        |
+        v
+Persistence Adapter
+```
+
+The service must never directly access the database.
+
+---
+
+# 23. AuditRepositoryPort
+
+`AuditRepositoryPort` is responsible for AuditLog persistence.
+
+Conceptually:
+
+```text
+Bank Account Service
+        |
+        v
+AuditLog
+        |
+        v
+AuditRepositoryPort
+        |
+        v
+Persistence Adapter
+        |
+        v
+MongoDB
+```
+
+The Bank Account service must not directly access MongoDB.
+
+---
+
+# 24. Open Bank Account
+
+## 24.1 Purpose
+
+Creates a new Bank Account associated with an eligible Customer.
+
+The operation establishes the Bank Account as a banking product and initializes its valid business state.
+
+---
+
+## 24.2 Input
+
+The operation must receive the appropriate Domain Model representation.
+
+Conceptually:
 
 ```text
 BankAccount
 ```
 
-The Domain Model must contain:
+The Bank Account should contain or reference:
 
 * Account type.
 * Owner.
@@ -168,252 +844,337 @@ The Domain Model must contain:
 * Account status.
 * Opening date.
 
-The service must not receive these attributes as independent parameters.
+The service must not require these values as unrelated primitive parameters.
 
 ---
 
-## Domain Validations
+## 24.3 Validations
 
-The service validates the account using the information contained in the Domain Model.
+The service must validate all rules required to create the account, including when applicable:
 
-Examples include:
-
+* Requesting User.
+* User status.
+* User authorization.
+* Customer existence.
+* Customer status.
+* Customer eligibility.
 * Valid account type.
 * Valid currency.
-* Valid owner.
 * Valid initial balance.
-* Valid initial account status.
+* Valid initial status.
 * Valid opening date.
+* Any account-opening restrictions.
 
 ---
 
-## Customer Validation
+## 24.4 Customer Validation
 
-The owner is represented by:
+The Bank Account owner is:
 
 ```text
 BankAccount.owner : Customer
 ```
 
-If the customer information required by the business rule is already present in the Domain Model, the service validates it directly.
+If the Domain Model already contains all required information, it should be validated directly.
 
-If additional persisted information is required, the service uses:
-
-```text
-CustomerRepository
-```
-
-through an Output Port.
-
----
-
-## Account Identifier
-
-The `BankAccount` inherits its product identity from `BankingProduct`.
-
-The service must not generate or manipulate persistence identifiers directly.
-
-The persistence mechanism is responsible for the technical representation of the identifier.
-
----
-
-## Persistence
-
-After successful validation, the account is persisted through:
+If authoritative external Customer information is required:
 
 ```text
-BankAccountRepository
+CustomerRepositoryPort
 ```
+
+must be used.
 
 ---
 
-## Operation and Audit
+## 24.5 Account Creation
 
-Opening an account represents a business operation.
+The account must be initialized through valid Domain behavior.
+
+The service must not manually manipulate persistence state.
 
 Conceptually:
 
 ```text
 BankAccount
-     │
-     ▼
-Open Bank Account
-     │
-     ├── Persist Account
-     │
-     └── Create Operation
-             │
-             ▼
-          AuditLog
+      |
+      v
+Validate
+      |
+      v
+Open/Create Domain State
+      |
+      v
+BankAccountRepositoryPort
 ```
 
-The service must not access MongoDB directly.
+---
 
-Audit persistence must occur through the corresponding Output Port.
+## 24.6 Operation and Audit
+
+Opening an account is a significant business operation.
+
+The service must:
+
+1. Persist the new Bank Account.
+2. Register the corresponding `Operation`.
+3. Register the required `AuditLog`.
+
+These operations must maintain transactional consistency.
 
 ---
 
-# 2. Consult Bank Account
+# 25. Consult Bank Account
 
-## Description
+## 25.1 Purpose
 
-Retrieves information about an existing bank account.
-
-The result must be represented using the `BankAccount` Domain Model.
-
-Persistence entities must never be returned outside the persistence adapter.
+Retrieves an existing Bank Account to which the requesting actor is authorized to have access.
 
 ---
 
-## Input
+## 25.2 Input
+
+The application-level contract must use the appropriate Domain Model.
+
+Conceptually:
 
 ```text
 BankAccount
 ```
 
-The service must not receive:
+The service must not expose:
 
 ```java
 consultAccount(String accountId);
 ```
 
-as the application-level contract.
+as the business use case contract.
 
-Instead:
+---
+
+## 25.3 Processing
+
+The service should:
+
+```text
+1. Validate requesting User.
+2. Retrieve authoritative BankAccount.
+3. Validate BankAccount existence.
+4. Resolve Customer when required.
+5. Validate Customer.
+6. Validate User authorization.
+7. Validate Customer-BankAccount ownership or access relationship.
+8. Return BankAccount.
+```
+
+---
+
+## 25.4 Persistence
+
+The account must be retrieved through:
+
+```text
+BankAccountRepositoryPort
+```
+
+Persistence entities must never be returned outside the persistence adapter.
+
+---
+
+# 26. Consult Account Balance
+
+## 26.1 Purpose
+
+Returns the current balance of an authorized Bank Account.
+
+---
+
+## 26.2 Processing
+
+The service must:
+
+```text
+1. Validate requesting User.
+2. Validate User status.
+3. Validate authorization.
+4. Retrieve authoritative BankAccount when required.
+5. Validate BankAccount existence.
+6. Resolve Customer when required.
+7. Validate ownership/access.
+8. Return currentBalance.
+```
+
+---
+
+## 26.3 Balance Authority
+
+The authoritative balance is:
+
+```text
+BankAccount.currentBalance
+```
+
+The service must not trust a balance supplied by the caller.
+
+The service must not reconstruct the balance from arbitrary persistence data unless explicitly required by the domain.
+
+---
+
+# 27. Deposit Funds
+
+## 27.1 Purpose
+
+Deposits funds into an authorized Bank Account.
+
+The operation increases:
+
+```text
+BankAccount.currentBalance
+```
+
+---
+
+## 27.2 Input
+
+The operation must use the appropriate Domain Models and Value Objects.
+
+Conceptually:
+
+```text
+User
+Customer
+BankAccount
+Money
+```
+
+The exact method signature depends on the domain model.
+
+---
+
+## 27.3 Required Validations
+
+The service must validate:
+
+### User
+
+* User exists.
+* User is active.
+* User is authorized.
+
+### Customer
+
+* Customer exists.
+* Customer is active/eligible when required.
+* Customer is authorized to operate on the account when applicable.
+
+### Ownership / Access
+
+* Customer owns the Bank Account when customer ownership is required.
+* Employee User has the required authorization when operating on behalf of the bank.
+
+### Bank Account
+
+* Account exists.
+* Account is in a status that allows deposits.
+
+### Deposit
+
+* Amount exists.
+* Amount is greater than zero.
+* Currency is compatible when applicable.
+* Other deposit-specific business rules are satisfied.
+
+---
+
+## 27.4 Account Status
+
+Under the default rules:
+
+```text
+ACTIVE  -> Deposit allowed
+BLOCKED -> Deposit rejected
+CLOSED  -> Deposit rejected
+```
+
+---
+
+## 27.5 Domain Behavior
+
+The balance must be changed through Domain behavior:
 
 ```java
-consultAccount(BankAccount bankAccount);
+bankAccount.deposit(money);
 ```
 
-The Domain Model contains the information required to identify or contextualize the requested account.
+The service must not directly calculate and assign the balance.
 
 ---
 
-## Processing
+## 27.6 Persistence
+
+After successful Domain execution:
 
 ```text
-BankAccount
-     │
-     ▼
-BankAccountRepository
-     │
-     ▼
-BankAccount
+BankAccountRepositoryPort.update(bankAccount)
 ```
 
----
-
-# 3. Deposit Funds
-
-## Description
-
-Deposits funds into a bank account.
-
-The operation increases the account's `currentBalance`.
-
-The service must validate all business rules before modifying the account.
+must persist the new state.
 
 ---
 
-## Input
+## 27.7 Operation and Audit
+
+A successful deposit must generate:
 
 ```text
-BankAccount
+Operation
+    operationType = DEPOSIT
+    performedBy = requestingUser
+    affectedProduct = bankAccount
 ```
 
-The Domain Model must contain the information necessary to represent the deposit operation.
+Relevant details should include:
 
-The amount must be represented using the appropriate Domain Model/Value Object rather than being passed as an isolated primitive parameter.
+```text
+amount
+balanceBefore
+balanceAfter
+```
 
----
-
-## Validations
-
-The service validates:
-
-* Account status.
-* Account eligibility for deposits.
-* Deposit amount.
-* Currency compatibility when applicable.
-* Customer/account relationship when required.
-
-For example, a closed account must not accept deposits.
+The corresponding audit record must also be generated.
 
 ---
 
-## Balance Modification
+# 28. Withdraw Funds
 
-The balance modification must be performed through the Domain Model behavior.
+## 28.1 Purpose
+
+Withdraws funds from an authorized Bank Account.
+
+The operation decreases:
+
+```text
+BankAccount.currentBalance
+```
+
+`WithdrawFundsService` is the reference implementation pattern for state-changing Bank Account services.
+
+---
+
+## 28.2 Input
+
+The operation must use Domain Models and Value Objects.
 
 Conceptually:
 
 ```text
+User
+Customer
 BankAccount
-     │
-     ▼
-Validate Deposit
-     │
-     ▼
-Increase currentBalance
+Money
 ```
 
-The service must not manipulate database fields directly.
-
----
-
-## Persistence
-
-After the Domain Model reaches a valid state:
-
-```text
-BankAccountRepository
-```
-
-is used to persist the updated account.
-
----
-
-## Operation and Audit
-
-A deposit represents a business operation.
-
-Conceptually:
-
-```text
-Deposit
-   │
-   ▼
-BankAccount
-   │
-   ├── Update Balance
-   │
-   └── Operation
-          │
-          ▼
-       AuditLog
-```
-
----
-
-# 4. Withdraw Funds
-
-## Description
-
-Withdraws funds from a bank account.
-
-The operation decreases the account's `currentBalance`.
-
----
-
-## Input
-
-```text
-BankAccount
-```
-
-The withdrawal information must be represented through the Domain Model.
-
-The service must not receive:
+The service must not expose a primitive application contract such as:
 
 ```java
 withdraw(
@@ -422,33 +1183,111 @@ withdraw(
 );
 ```
 
-Instead, the required information must be represented through the appropriate Domain Model.
-
 ---
 
-## Validations
+## 28.3 Reference Execution Pattern
 
-The service validates:
-
-* Account status.
-* Withdrawal amount.
-* Available balance.
-* Currency compatibility when applicable.
-* Account eligibility for withdrawals.
-
----
-
-## Insufficient Balance
-
-The account must not allow a withdrawal that exceeds its available balance.
-
-Conceptually:
+The reference implementation follows this conceptual flow:
 
 ```text
-currentBalance >= withdrawalAmount
+Requesting User
+      |
+      v
+Customer
+      |
+      v
+BankAccount
+      |
+      v
+Retrieve authoritative BankAccount
+      |
+      v
+Validate BankAccount existence
+      |
+      v
+Resolve authoritative Customer
+      |
+      v
+Validate Customer existence
+      |
+      v
+Validate Customer owns BankAccount
+      |
+      v
+Validate User
+      |
+      v
+Validate authorization
+      |
+      v
+Validate AccountStatus
+      |
+      v
+Validate withdrawal amount
+      |
+      v
+Validate sufficient balance
+      |
+      v
+Execute withdrawal
+      |
+      v
+Persist BankAccount
+      |
+      v
+Register Operation
+      |
+      v
+Register Audit
 ```
 
-If this rule is violated:
+---
+
+## 28.4 Required Validations
+
+The service must validate:
+
+### Requesting User
+
+* User is present.
+* User exists/represents a valid actor.
+* User is active.
+* User has the required authorization.
+
+### Customer
+
+* Customer exists.
+* Customer is valid.
+* Customer is eligible when required.
+
+### Ownership
+
+The Customer involved in the operation must correspond to the Bank Account owner when the operation is customer-restricted.
+
+### Bank Account
+
+* Account exists.
+* Current state is authoritative.
+* Account status allows withdrawals.
+
+### Withdrawal
+
+* Amount is present.
+* Amount is greater than zero.
+* Currency is compatible when applicable.
+* Amount does not exceed available balance.
+
+---
+
+## 28.5 Insufficient Balance
+
+A withdrawal must satisfy:
+
+```text
+withdrawalAmount <= currentBalance
+```
+
+Otherwise:
 
 ```text
 InsufficientBalanceException
@@ -458,724 +1297,344 @@ must be raised.
 
 ---
 
-## Balance Modification
+## 28.6 Account Status
 
-When all validations succeed:
-
-```text
-BankAccount
-     │
-     ▼
-Validate Withdrawal
-     │
-     ▼
-Decrease currentBalance
-```
-
-The Domain Model remains responsible for maintaining its own valid state.
-
----
-
-## Persistence
-
-The updated account is persisted through:
+Under the default rules:
 
 ```text
-BankAccountRepository
+ACTIVE  -> Withdrawal allowed
+BLOCKED -> Withdrawal rejected
+CLOSED  -> Withdrawal rejected
 ```
 
 ---
 
-## Operation and Audit
+## 28.7 Domain Behavior
 
-A withdrawal represents a business operation and must be traceable.
-
-```text
-Withdrawal
-    │
-    ▼
-BankAccount
-    │
-    ├── Update Balance
-    │
-    └── Operation
-           │
-           ▼
-        AuditLog
-```
-
----
-
-# 5. Block Bank Account
-
-## Description
-
-Changes the operational status of a bank account to `BLOCKED`.
-
-A blocked account cannot perform operations that are prohibited by its status.
-
----
-
-## Input
-
-```text
-BankAccount
-```
-
-The service must not receive:
+The preferred implementation is:
 
 ```java
-blockAccount(String accountId);
+bankAccount.withdraw(money);
 ```
+
+The Domain Model must guarantee that the Bank Account remains valid after the operation.
 
 ---
 
-## Domain Validation
+## 28.8 Operation and Audit
 
-The service validates whether the current account state allows the transition to:
+A successful withdrawal must generate an Operation.
+
+Conceptually:
+
+```text
+Operation
+ |
+ +-- operationType = WITHDRAWAL
+ +-- performedBy = requestingUser
+ +-- affectedProduct = bankAccount
+ +-- executionDate
+```
+
+Relevant details should include:
+
+```text
+amount
+balanceBefore
+balanceAfter
+```
+
+A corresponding AuditLog must be generated according to the audit rules.
+
+---
+
+# 29. Block Bank Account
+
+## 29.1 Purpose
+
+Changes an eligible Bank Account from its current state to:
 
 ```text
 BLOCKED
 ```
 
-The valid status transition is determined by Domain rules.
-
 ---
 
-## Status Change
+## 29.2 Required Validations
 
-Conceptually:
+The service must validate:
 
-```text
-BankAccount
-     │
-     ▼
-Validate Status Transition
-     │
-     ▼
-AccountStatus = BLOCKED
-```
-
----
-
-## Persistence
-
-The updated account is persisted through:
-
-```text
-BankAccountRepository
-```
-
----
-
-## Operation and Audit
-
-Blocking an account is a significant business operation.
-
-It must generate an `Operation` and the corresponding audit information according to the audit rules.
-
-```text
-Block Account
-      │
-      ├── Update Account
-      │
-      └── Operation
-             │
-             ▼
-          AuditLog
-```
-
----
-
-# 6. Unblock Bank Account
-
-## Description
-
-Changes a blocked bank account back to an operational state according to the permitted Domain transition.
-
----
-
-## Input
-
-```text
-BankAccount
-```
-
----
-
-## Validations
-
-The service validates:
-
+* Requesting User.
+* User status.
+* User authorization.
+* Bank Account existence.
+* Customer relationship when applicable.
+* Customer ownership when applicable.
 * Current account status.
-* Validity of the requested transition.
-* Authorization of the actor when required.
-* Any additional business conditions.
-
-External information must be obtained through Output Ports.
+* Valid status transition.
+* Additional blocking business rules.
 
 ---
 
-## Status Change
-
-Conceptually:
+## 29.3 Default Transition
 
 ```text
-BankAccount
-     │
-     ▼
-AccountStatus = BLOCKED
-     │
-     ▼
-Validate Transition
-     │
-     ▼
-AccountStatus = ACTIVE
+ACTIVE -> BLOCKED
 ```
 
----
-
-## Persistence and Audit
-
-After the transition succeeds:
-
-```text
-BankAccountRepository
-```
-
-persists the updated account.
-
-The operation must also be registered according to the Operation and Audit rules.
-
----
-
-# 7. Close Bank Account
-
-## Description
-
-Permanently closes a bank account.
-
-The account status changes to:
-
-```text
-CLOSED
-```
-
----
-
-## Input
-
-```text
-BankAccount
-```
-
----
-
-## Validations
-
-The service validates the conditions required to close the account.
-
-These validations must use information available in the Domain Model whenever possible.
-
-Possible business conditions include:
-
-* Account status allows closure.
-* Account has no prohibited outstanding balance.
-* Account is not involved in an operation that prevents closure.
-* Required authorization is available.
-
-If a required condition depends on external information, the service must use the appropriate Output Port.
-
----
-
-## Status Change
-
-```text
-BankAccount
-     │
-     ▼
-Validate Closure
-     │
-     ▼
-AccountStatus = CLOSED
-```
-
-A closed account must not return to an active state unless the Domain explicitly defines such a transition.
-
----
-
-## Persistence and Audit
-
-The account is persisted through:
-
-```text
-BankAccountRepository
-```
-
-The closure is recorded as a business operation and audited.
-
----
-
-# 8. Validate Account Ownership
-
-## Description
-
-Validates that a `Customer` owns or is authorized to operate on a specific `BankAccount`.
-
-The relationship is represented by the Domain Models:
-
-```text
-BankAccount.owner
-```
-
-and:
-
-```text
-Customer
-```
-
-The service must not compare raw identifiers directly as a substitute for the Domain relationship.
-
----
-
-## Input
-
-The service receives the appropriate Domain Models required by the ownership rule.
-
-For example:
-
-```text
-BankAccount
-Customer
-```
-
-If the architectural rule requires a single Domain Model parameter, the operation should be represented through an appropriate Domain Model containing the required relationship rather than passing primitive identifiers.
-
----
-
-## External Validation
-
-If the ownership cannot be determined from the provided Domain Model, the service uses:
-
-```text
-BankAccountRepository
-```
-
-or:
-
-```text
-CustomerRepository
-```
-
-depending on the required business information.
-
----
-
-# 9. Consult Account Balance
-
-## Description
-
-Provides the current balance of a `BankAccount`.
-
-The balance belongs to the Domain Model:
-
-```text
-BankAccount.currentBalance
-```
-
-Therefore, if the complete and current `BankAccount` is already available, no external query is required.
-
-If the current persisted state is required, the service retrieves the account through:
-
-```text
-BankAccountRepository
-```
-
----
-
-## Domain Rule
-
-The service must not calculate or reconstruct the balance from database records unless the Domain explicitly requires such behavior.
-
-The authoritative balance is the one represented by the `BankAccount` Domain Model.
-
----
-
-# Output Ports
-
-The Bank Account subdomain requires Output Ports for external dependencies.
-
-Conceptually:
-
-```text
-BankAccountRepository
-CustomerRepository
-OperationRepository
-AuditRepository
-```
-
-Additional ports may be introduced when future business rules require external information.
-
----
-
-# BankAccountRepository
-
-## Description
-
-Defines persistence operations required for `BankAccount`.
-
-Conceptually:
-
-```java
-interface BankAccountRepository {
-
-    BankAccount save(BankAccount bankAccount);
-
-    BankAccount find(BankAccount bankAccount);
-
-    boolean exists(BankAccount bankAccount);
-}
-```
-
-The exact methods should be refined according to the persistence requirements.
-
-The interface belongs to:
-
-```text
-domain/ports/out/
-```
-
-The MySQL adapter implements this port.
-
----
-
-# CustomerRepository
-
-## Description
-
-Provides customer information when a bank account operation requires information that cannot be determined from the `Customer` Domain Model already associated with the account.
-
-Conceptually:
-
-```java
-interface CustomerRepository {
-
-    Customer find(Customer customer);
-
-    boolean exists(Customer customer);
-}
-```
-
-The exact interface should be defined in the dedicated Customer Output Port documentation.
-
----
-
-# OperationRepository
-
-## Description
-
-Provides persistence of business operations generated by bank account activities.
-
-The service must not persist operations directly.
-
-Conceptually:
-
-```text
-Bank Account Service
-        │
-        ▼
-Operation
-        │
-        ▼
-OperationRepository
-        │
-        ▼
-Persistence Adapter
-```
-
----
-
-# AuditRepository
-
-## Description
-
-Provides persistence of audit records.
-
-Audit records are stored in MongoDB according to the architecture.
-
-The service communicates through the Output Port:
-
-```text
-AuditRepository
-```
-
-and never accesses MongoDB directly.
-
----
-
-# Input Ports
-
-The Bank Account subdomain exposes the following conceptual use cases:
-
-```text
-OpenBankAccountUseCase
-ConsultBankAccountUseCase
-DepositFundsUseCase
-WithdrawFundsUseCase
-BlockBankAccountUseCase
-UnblockBankAccountUseCase
-CloseBankAccountUseCase
-ValidateAccountOwnershipUseCase
-ConsultAccountBalanceUseCase
-```
-
-Each Input Port must receive Domain Models rather than primitive values.
-
----
-
-# Example Input Port
-
-```java
-interface OpenBankAccountUseCase {
-
-    BankAccount open(BankAccount bankAccount);
-}
-```
-
----
-
-# Deposit Flow
-
-```text
-BankAccount
-     │
-     ▼
-DepositFundsUseCase
-     │
-     ▼
-Bank Account Service
-     │
-     ├── Validate Domain Rules
-     │
-     ├── Update BankAccount
-     │
-     ├── BankAccountRepository
-     │
-     ├── OperationRepository
-     │
-     └── AuditRepository
-```
-
----
-
-# Withdrawal Flow
-
-```text
-BankAccount
-     │
-     ▼
-WithdrawFundsUseCase
-     │
-     ▼
-Bank Account Service
-     │
-     ├── Validate AccountStatus
-     │
-     ├── Validate Balance
-     │
-     ├── Update BankAccount
-     │
-     ├── BankAccountRepository
-     │
-     ├── OperationRepository
-     │
-     └── AuditRepository
-```
-
----
-
-# Account Blocking Flow
-
-```text
-BankAccount
-     │
-     ▼
-BlockBankAccountUseCase
-     │
-     ▼
-Bank Account Service
-     │
-     ├── Validate Status Transition
-     │
-     ├── Change AccountStatus
-     │
-     ├── BankAccountRepository
-     │
-     ├── OperationRepository
-     │
-     └── AuditRepository
-```
-
----
-
-# Input Adapter Flow
-
-External requests must be transformed into Domain Models before entering the Domain.
-
-```text
-HTTP Request
-     │
-     ▼
-Request DTO
-     │
-     ▼
-Request Mapper
-     │
-     ▼
-BankAccount Domain Model
-     │
-     ▼
-Input Port
-     │
-     ▼
-Bank Account Service
-```
-
-Controllers must not implement account business rules.
-
----
-
-# Validation Strategy
-
-## Domain Validation
-
-The following information belongs directly to `BankAccount`:
-
-```text
-accountType
-owner
-currentBalance
-currency
-accountStatus
-openingDate
-```
-
-Business rules involving these attributes should be validated by the Domain Model or Domain Service.
-
----
-
-## External Validation
-
-When a rule requires information not contained in the Domain Model, the service must call an Output Port.
+The Domain must reject invalid transitions.
 
 Examples:
 
 ```text
-Customer existence
-Existing account
-Persisted account state
-Operation persistence
-Audit persistence
+BLOCKED -> BLOCKED
+CLOSED -> BLOCKED
 ```
 
-The flow must always be:
+unless explicitly permitted by the business rules.
 
-```text
-Domain Service
-      │
-      ▼
-Output Port
-      │
-      ▼
-Output Adapter
-      │
-      ▼
-External Resource
+---
+
+## 29.4 Domain Behavior
+
+Preferred:
+
+```java
+bankAccount.block();
+```
+
+rather than:
+
+```java
+bankAccount.setAccountStatus(BLOCKED);
 ```
 
 ---
 
-# Account Status
+## 29.5 Operation and Audit
 
-The `BankAccount` uses the `AccountStatus` Value Object.
+A successful block operation must generate:
 
-The supported conceptual states are:
+```text
+Operation
+    operationType = ACCOUNT_BLOCK
+    performedBy = requestingUser
+    affectedProduct = bankAccount
+```
+
+and the corresponding audit information.
+
+---
+
+# 30. Unblock Bank Account
+
+## 30.1 Purpose
+
+Changes an eligible blocked Bank Account back to:
 
 ```text
 ACTIVE
-BLOCKED
+```
+
+---
+
+## 30.2 Required Validations
+
+The service must validate:
+
+* Requesting User.
+* User status.
+* User authorization.
+* Bank Account existence.
+* Customer relationship when applicable.
+* Customer ownership when applicable.
+* Current account status.
+* Valid status transition.
+* Additional unblocking business rules.
+
+---
+
+## 30.3 Default Transition
+
+```text
+BLOCKED -> ACTIVE
+```
+
+Invalid examples include:
+
+```text
+ACTIVE -> ACTIVE
+CLOSED -> ACTIVE
+```
+
+unless explicitly permitted by the Domain.
+
+---
+
+## 30.4 Domain Behavior
+
+Preferred:
+
+```java
+bankAccount.unblock();
+```
+
+---
+
+## 30.5 Operation and Audit
+
+A successful unblock operation must generate an Operation and the corresponding AuditLog according to the audit rules.
+
+---
+
+# 31. Close Bank Account
+
+## 31.1 Purpose
+
+Closes a Bank Account by transitioning it to:
+
+```text
 CLOSED
 ```
 
-The Domain is responsible for validating status transitions.
+---
 
-The database must not determine whether a transition is valid.
+## 31.2 Required Validations
+
+The service must validate:
+
+### User
+
+* User exists.
+* User is active.
+* User is authorized.
+
+### Customer
+
+* Customer exists.
+* Customer is valid.
+* Customer owns the account when ownership is required.
+
+### Bank Account
+
+* Account exists.
+* Current status allows closure.
+* The transition to `CLOSED` is valid.
+
+### Closure Rules
+
+The service must validate all applicable closure conditions, such as:
+
+* Current balance requirements.
+* Outstanding obligations.
+* Pending operations.
+* Product restrictions.
+* Customer eligibility.
+* Other domain-specific closure conditions.
 
 ---
 
-# Account Operations and Audit
+## 31.3 Balance
 
-Bank accounts are `BankingProduct` entities.
-
-Every significant business movement involving a bank account must generate an `Operation`.
-
-Examples include:
+If the business rule requires the balance to be zero:
 
 ```text
-ACCOUNT_OPENING
-DEPOSIT
-WITHDRAWAL
+currentBalance == 0
 ```
 
-Account state changes such as blocking or closing must also generate an operation when required by the business rules.
+must be satisfied before closure.
 
-Conceptually:
+The service must not assume that the account can be closed simply because the user requested it.
+
+---
+
+## 31.4 Domain Behavior
+
+Preferred:
+
+```java
+bankAccount.close();
+```
+
+The Domain Model must prevent invalid transitions.
+
+---
+
+## 31.5 Operation and Audit
+
+A successful closure must generate:
 
 ```text
-BankAccount
-     │
-     ▼
-Business Action
-     │
-     ├──────────────► BankAccount updated
-     │
-     ▼
 Operation
-     │
-     ▼
-AuditLog
+    operationType = ACCOUNT_CLOSURE
+    performedBy = requestingUser
+    affectedProduct = bankAccount
 ```
 
-The audit mechanism must remain independent from the Bank Account service implementation.
+and the corresponding AuditLog.
 
 ---
 
-# Relationship With BankingProduct
+# 32. Account Ownership Validation
 
-`BankAccount` inherits from `BankingProduct`.
+Ownership validation is not merely an identifier comparison.
 
-Therefore, common product-level information must not be duplicated inside `BankAccount`.
-
-Conceptually:
+The business rule is:
 
 ```text
-BankingProduct
-      │
-      ├── identifier
-      │
-      └── common product information
-              │
-              ▼
-        BankAccount
+BankAccount.owner == Customer involved in operation
 ```
 
-The exact common attributes belong to the `BankingProduct` Domain Model.
+The service must use authoritative Domain information to establish this relationship.
+
+A typical validation flow is:
+
+```text
+Input Customer
+      |
+      v
+CustomerRepositoryPort
+      |
+      v
+Authoritative Customer
+      |
+      v
+Authoritative BankAccount
+      |
+      v
+Validate ownership relationship
+```
+
+The reference `WithdrawFundsService` demonstrates this concept by retrieving the authoritative Customer and Bank Account before validating the ownership relationship.
 
 ---
 
-# Exceptions
+# 33. Authorization
 
-Conceptual exceptions for this subdomain include:
+Authorization is operation-specific.
+
+A customer User should generally be able to operate only on products belonging to the Customer associated with that User.
+
+An employee User may operate according to their role and permissions.
+
+The service must therefore distinguish:
+
+```text
+Identity
+Authorization
+Ownership
+Product State
+```
+
+These are separate business conditions.
+
+The service may perform all these validations within one cohesive operation.
+
+---
+
+# 34. Exception Model
+
+The Bank Account subdomain may use exceptions such as:
 
 ```text
 BankAccountNotFoundException
@@ -1189,47 +1648,984 @@ InvalidWithdrawalException
 AccountAlreadyClosedException
 AccountAlreadyBlockedException
 CustomerNotEligibleException
+UnauthorizedBankAccountOperationException
+InvalidUserStatusException
 ```
 
-The complete exception catalog should be defined separately in the Domain Exceptions documentation.
+Exceptions must communicate business failures clearly.
+
+The implementation must not intentionally rely on technical exceptions such as:
+
+```text
+NullPointerException
+SQL Exception
+JPA Exception
+Mongo Exception
+```
+
+to represent domain rule violations.
 
 ---
 
-# Architectural Constraints
+# 35. Persistence Boundary
 
-The following constraints are mandatory for all Bank Account Services:
+The required architecture is:
 
-1. `BankAccount` is a Domain Model.
-2. `BankAccount` inherits from `BankingProduct`.
-3. The account owner is represented by `Customer`.
-4. Customer relationships must not be represented by primitive identifiers in the Domain Model.
-5. Services must receive Domain Models or Value Objects.
-6. Services must never receive primitive identifiers as application-level parameters.
-7. Services must never receive isolated attributes when those attributes belong to a Domain Model.
-8. Services must never receive REST DTOs.
-9. Services must never receive persistence entities.
-10. Controllers must not contain Bank Account business rules.
-11. Business validations must belong to the Domain.
-12. Information already available in the Domain Model must be validated without unnecessary external calls.
-13. Information external to the Domain must be retrieved through Output Ports.
-14. Services must always communicate with external resources through Output Ports.
-15. Services must never access MySQL directly.
-16. Services must never access MongoDB directly.
-17. Services must never access SQL or JPA directly.
-18. `BankAccountRepository` is responsible for Bank Account persistence.
-19. `CustomerRepository` is responsible for external Customer information when required.
-20. `OperationRepository` is responsible for operation persistence.
-21. `AuditRepository` is responsible for audit persistence.
-22. Account balance changes must be performed through valid Domain behavior.
-23. Withdrawals must not exceed the available balance.
-24. Blocked accounts must respect the restrictions defined by `AccountStatus`.
-25. Closed accounts must respect the restrictions defined by `AccountStatus`.
-26. Account status transitions must be validated by Domain rules.
-27. Significant account operations must generate an `Operation`.
-28. Relevant account operations must be recorded in the `AuditLog`.
-29. Persistence entities must never leave the persistence adapter.
-30. The Domain must remain independent of infrastructure technologies.
-31. The entire Bank Account subdomain must be testable without requiring MySQL, MongoDB, REST, or infrastructure components.
-
+```text
+Application Service
+        |
+        v
+Output Port
+        |
+        v
+Persistence Adapter
+        |
+        v
+Database
 ```
+
+For Bank Accounts:
+
+```text
+BankAccountService
+        |
+        v
+BankAccountRepositoryPort
+        |
+        v
+BankAccountPersistenceAdapter
+        |
+        v
+Database
 ```
+
+For Customers:
+
+```text
+BankAccountService
+        |
+        v
+CustomerRepositoryPort
+        |
+        v
+CustomerPersistenceAdapter
+        |
+        v
+Database
+```
+
+For Operations:
+
+```text
+BankAccountService
+        |
+        v
+OperationRepositoryPort
+        |
+        v
+OperationPersistenceAdapter
+```
+
+For Audit:
+
+```text
+BankAccountService
+        |
+        v
+AuditRepositoryPort
+        |
+        v
+AuditPersistenceAdapter
+        |
+        v
+MongoDB
+```
+
+---
+
+# 36. Persistence Entities
+
+Persistence entities must never leave their persistence adapter.
+
+Incorrect:
+
+```text
+Controller
+    |
+    v
+Persistence Entity
+    |
+    v
+Application Service
+```
+
+Correct:
+
+```text
+Controller
+    |
+    v
+Request Mapper
+    |
+    v
+Domain Model
+    |
+    v
+Application Service
+    |
+    v
+Output Port
+    |
+    v
+Persistence Adapter
+    |
+    v
+Persistence Entity
+```
+
+The adapter is responsible for mapping:
+
+```text
+Domain Model <-> Persistence Entity
+```
+
+---
+
+# 37. Controller Responsibilities
+
+Controllers are responsible only for transport concerns.
+
+They may:
+
+1. Receive external requests.
+2. Perform transport-level validation.
+3. Map request data to Domain Models and Value Objects.
+4. Invoke an Input Port.
+5. Map the Domain result to the external response.
+
+Controllers must not implement:
+
+* Account ownership validation.
+* Customer eligibility rules.
+* Withdrawal rules.
+* Deposit rules.
+* Balance mutation.
+* Account status transitions.
+* Authorization business decisions.
+* Operation registration.
+* Audit registration.
+* Persistence.
+
+---
+
+# 38. Deposit Processing Flow
+
+```text
+Requesting User
+       |
+       v
+Customer
+       |
+       v
+BankAccount
+       |
+       v
+Retrieve authoritative state
+       |
+       v
+Validate User
+       |
+       v
+Validate Customer
+       |
+       v
+Validate ownership/access
+       |
+       v
+Validate AccountStatus
+       |
+       v
+Validate Money
+       |
+       v
+Execute deposit
+       |
+       v
+Persist BankAccount
+       |
+       v
+Register Operation
+       |
+       v
+Register Audit
+```
+
+---
+
+# 39. Withdrawal Processing Flow
+
+```text
+Requesting User
+       |
+       v
+Customer
+       |
+       v
+BankAccount
+       |
+       v
+Retrieve authoritative BankAccount
+       |
+       v
+Validate BankAccount existence
+       |
+       v
+Retrieve authoritative Customer
+       |
+       v
+Validate Customer existence
+       |
+       v
+Validate Customer ownership
+       |
+       v
+Validate User
+       |
+       v
+Validate authorization
+       |
+       v
+Validate AccountStatus
+       |
+       v
+Validate withdrawal amount
+       |
+       v
+Validate sufficient balance
+       |
+       v
+Execute withdrawal
+       |
+       v
+Persist BankAccount
+       |
+       v
+Register Operation
+       |
+       v
+Register Audit
+```
+
+This is the reference flow for Bank Account state-changing services.
+
+---
+
+# 40. Blocking Processing Flow
+
+```text
+Requesting User
+       |
+       v
+BankAccount
+       |
+       v
+Retrieve authoritative state
+       |
+       v
+Validate User
+       |
+       v
+Validate authorization
+       |
+       v
+Validate ownership/access
+       |
+       v
+Validate current status
+       |
+       v
+Validate status transition
+       |
+       v
+Execute block()
+       |
+       v
+Persist BankAccount
+       |
+       v
+Register Operation
+       |
+       v
+Register Audit
+```
+
+---
+
+# 41. Consultation Flow
+
+```text
+Requesting User
+       |
+       v
+Validate User
+       |
+       v
+Validate Authorization
+       |
+       v
+Retrieve BankAccount
+       |
+       v
+Validate existence
+       |
+       v
+Validate Customer relationship
+       |
+       v
+Validate Product Access
+       |
+       v
+Return Domain Model
+```
+
+Consultation operations do not normally modify Bank Account state.
+
+However, if the business audit policy requires auditing sensitive consultations, an AuditLog must be generated.
+
+---
+
+# 42. Validation Matrix
+
+The following matrix defines the minimum validation dimensions.
+
+| Validation             |               Open |          Consult |          Balance |  Deposit | Withdraw |         Block |       Unblock |    Close |
+| ---------------------- | -----------------: | ---------------: | ---------------: | -------: | -------: | ------------: | ------------: | -------: |
+| User                   |                Yes |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| User status            |                Yes |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Authorization          |                Yes |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Customer               |                Yes |    When required |    When required |      Yes |      Yes | When required | When required |      Yes |
+| Customer status        |                Yes |    When required |    When required |      Yes |      Yes | When required | When required |      Yes |
+| Ownership/access       |                N/A |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Account existence      |                N/A |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Account status         |      Initial state |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Operation rules        |                Yes |              Yes |              Yes |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Operation registration |                Yes |       Usually no |       Usually no |      Yes |      Yes |           Yes |           Yes |      Yes |
+| Audit                  | Required by policy | Policy dependent | Policy dependent | Required | Required |      Required |      Required | Required |
+
+`When required` means the validation depends on the business context of the operation.
+
+---
+
+# 43. Business Rules Summary
+
+## BR-001 — Bank Account is a Domain Model
+
+`BankAccount` must belong to the Domain Model.
+
+---
+
+## BR-002 — Bank Account Inherits BankingProduct
+
+```text
+BankingProduct
+      |
+      +-- BankAccount
+```
+
+---
+
+## BR-003 — Owner is Customer
+
+```text
+BankAccount.owner : Customer
+```
+
+Ownership must not be modeled only as a primitive identifier.
+
+---
+
+## BR-004 — User and Customer are Different Concepts
+
+A User represents the actor.
+
+A Customer represents the banking customer.
+
+---
+
+## BR-005 — Product Ownership Must Be Verified
+
+A Customer must not be allowed to operate on a Bank Account belonging to another Customer.
+
+---
+
+## BR-006 — User Authorization Must Be Verified
+
+The existence of a User does not imply authorization.
+
+---
+
+## BR-007 — Customer Eligibility Must Be Verified
+
+The existence of a Customer does not imply eligibility.
+
+---
+
+## BR-008 — Product State Must Be Authoritative
+
+For state-changing operations, the service must use the current authoritative Bank Account state.
+
+---
+
+## BR-009 — Blocked Accounts Have Operational Restrictions
+
+Operations prohibited by `BLOCKED` status must be rejected.
+
+---
+
+## BR-010 — Closed Accounts Have Operational Restrictions
+
+Operations prohibited by `CLOSED` status must be rejected.
+
+---
+
+## BR-011 — Invalid Status Transitions Are Rejected
+
+The Domain must prevent invalid transitions.
+
+---
+
+## BR-012 — Deposits Must Be Valid
+
+Deposits must satisfy:
+
+```text
+amount > 0
+```
+
+and all other applicable monetary rules.
+
+---
+
+## BR-013 — Withdrawals Must Be Valid
+
+Withdrawals must satisfy:
+
+```text
+amount > 0
+amount <= currentBalance
+```
+
+and all other applicable monetary rules.
+
+---
+
+## BR-014 — Balance Must Be Changed Through Domain Behavior
+
+The application service must use valid Domain behavior rather than unrestricted persistence-style setters.
+
+---
+
+## BR-015 — Significant Operations Generate Operation Records
+
+State-changing Bank Account operations must generate an `Operation`.
+
+---
+
+## BR-016 — Relevant Operations Generate Audit Records
+
+Operations subject to auditing must generate `AuditLog`.
+
+---
+
+## BR-017 — External Information Uses Output Ports
+
+The application service must never directly access databases or infrastructure.
+
+---
+
+## BR-018 — Persistence Entities Stay in Adapters
+
+Persistence entities must never cross into the application/domain layer.
+
+---
+
+## BR-019 — Controllers Do Not Implement Business Rules
+
+Business rules belong to the Domain/Application layers.
+
+---
+
+## BR-020 — Services Must Be Cohesive
+
+One application service may perform all validations required for its business operation.
+
+The architecture must not be fragmented merely for the sake of creating smaller services.
+
+---
+
+# 44. Anti-Patterns
+
+## 44.1 Direct Database Access
+
+Invalid:
+
+```java
+EntityManager
+JpaRepository
+JdbcTemplate
+MongoRepository
+Connection
+SQL
+```
+
+inside application services.
+
+---
+
+## 44.2 Primitive Application Contracts
+
+Avoid:
+
+```java
+withdraw(
+    String accountId,
+    BigDecimal amount
+);
+```
+
+when Domain Models and Value Objects represent those concepts.
+
+---
+
+## 44.3 Trusting Caller-Supplied State
+
+Do not assume the caller-provided Bank Account contains the current:
+
+* Balance.
+* Status.
+* Owner.
+* Other persisted business state.
+
+---
+
+## 44.4 Missing Ownership Validation
+
+Invalid:
+
+```text
+Customer exists
++
+BankAccount exists
+=
+Customer may operate on BankAccount
+```
+
+Ownership must be explicitly established.
+
+---
+
+## 44.5 Confusing User and Customer
+
+Invalid:
+
+```text
+User == Customer
+```
+
+A User may be associated with a Customer, but they are different domain concepts.
+
+---
+
+## 44.6 Business Rules in Controllers
+
+Invalid:
+
+```text
+Controller
+ |
+ +-- check balance
+ +-- check ownership
+ +-- change status
+ +-- modify balance
+```
+
+---
+
+## 44.7 Direct Balance Mutation
+
+Avoid:
+
+```java
+bankAccount.setCurrentBalance(
+    bankAccount.getCurrentBalance().subtract(amount)
+);
+```
+
+as the primary domain behavior.
+
+Prefer:
+
+```java
+bankAccount.withdraw(money);
+```
+
+---
+
+## 44.8 Excessive Service Fragmentation
+
+Avoid:
+
+```text
+WithdrawFundsService
+       |
+       +-- ValidateUserService
+       +-- ValidateCustomerService
+       +-- ValidateOwnershipService
+       +-- ValidateAccountStatusService
+       +-- ValidateBalanceService
+       +-- ValidateAmountService
+```
+
+when these validations are only parts of the same withdrawal business operation.
+
+Prefer:
+
+```text
+WithdrawFundsService
+       |
+       +-- validateUser()
+       +-- validateCustomer()
+       +-- validateOwnership()
+       +-- validateAccount()
+       +-- validateWithdrawal()
+       +-- executeWithdrawal()
+```
+
+This provides cohesion without unnecessary architectural fragmentation.
+
+---
+
+# 45. Testing Requirements
+
+The Bank Account subdomain must be testable without infrastructure.
+
+Application services must be testable using mocks, fakes, or stubs for Output Ports.
+
+Tests must not require:
+
+```text
+MySQL
+MongoDB
+REST
+JPA
+Hibernate
+real persistence adapters
+```
+
+---
+
+## 45.1 User Tests
+
+Test:
+
+* Valid User.
+* Missing User.
+* Inactive User.
+* Unauthorized User.
+* Authorized Customer User.
+* Authorized Employee User.
+
+---
+
+## 45.2 Customer Tests
+
+Test:
+
+* Customer exists.
+* Customer does not exist.
+* Customer inactive.
+* Customer not eligible.
+* Customer does not own the Bank Account.
+
+---
+
+## 45.3 Bank Account Tests
+
+Test:
+
+* Account exists.
+* Account does not exist.
+* ACTIVE account.
+* BLOCKED account.
+* CLOSED account.
+* Invalid status transition.
+
+---
+
+## 45.4 Deposit Tests
+
+Test:
+
+* Valid deposit.
+* Zero amount.
+* Negative amount.
+* Invalid currency.
+* Deposit into BLOCKED account.
+* Deposit into CLOSED account.
+* Unauthorized deposit.
+* Deposit into another customer's account.
+
+---
+
+## 45.5 Withdrawal Tests
+
+Test:
+
+* Valid withdrawal.
+* Zero amount.
+* Negative amount.
+* Invalid currency.
+* Insufficient balance.
+* Withdrawal from BLOCKED account.
+* Withdrawal from CLOSED account.
+* Unauthorized withdrawal.
+* Withdrawal from another customer's account.
+
+---
+
+## 45.6 Blocking Tests
+
+Test:
+
+* ACTIVE -> BLOCKED.
+* BLOCKED -> BLOCKED rejected.
+* CLOSED -> BLOCKED rejected.
+* Unauthorized blocking.
+
+---
+
+## 45.7 Unblocking Tests
+
+Test:
+
+* BLOCKED -> ACTIVE.
+* ACTIVE -> ACTIVE rejected.
+* CLOSED -> ACTIVE rejected.
+* Unauthorized unblocking.
+
+---
+
+## 45.8 Closing Tests
+
+Test:
+
+* Valid closure.
+* Already closed account.
+* Invalid status.
+* Non-zero balance when zero balance is required.
+* Outstanding obligations.
+* Unauthorized closure.
+
+---
+
+## 45.9 Operation and Audit Tests
+
+For every applicable state-changing operation, verify:
+
+```text
+Operation generated
+Correct operation type
+Correct requesting User
+Correct affected BankAccount
+Correct execution date
+Correct operation details
+AuditLog generated
+```
+
+---
+
+# 46. Definition of Done
+
+A Bank Account service is complete only when:
+
+* It represents a coherent business operation.
+* It receives appropriate Domain Models and Value Objects.
+* It does not expose REST DTOs as application contracts.
+* It does not receive persistence entities.
+* It does not directly depend on persistence technology.
+* It retrieves authoritative state when required.
+* It validates the requesting User.
+* It validates User status.
+* It validates authorization.
+* It validates the Customer when applicable.
+* It validates Customer status and eligibility when applicable.
+* It validates Customer-BankAccount ownership when applicable.
+* It validates Bank Account existence.
+* It validates Bank Account status.
+* It validates all operation-specific business rules.
+* It executes valid Domain behavior.
+* It persists through Output Ports.
+* It generates the required Operation.
+* It generates the required AuditLog.
+* It maintains transactional consistency.
+* It protects Domain invariants.
+* It can be tested without infrastructure.
+
+---
+
+# 47. Final Service Catalog
+
+The Bank Account Management subdomain contains the following application services:
+
+```text
+Bank Account Management
+|
++-- Open Bank Account
+|
++-- Consult Bank Account
+|
++-- Consult Account Balance
+|
++-- Deposit Funds
+|
++-- Withdraw Funds
+|
++-- Block Bank Account
+|
++-- Unblock Bank Account
+|
++-- Close Bank Account
+```
+
+Ownership validation, User validation, Customer validation, authorization validation, status validation, and operation-specific validation are **business responsibilities of the applicable service**.
+
+They do not need to become independent application services simply because they are logically identifiable validations.
+
+---
+
+# 48. Reference Architecture
+
+The final architecture for a state-changing Bank Account operation should follow:
+
+```text
+                         INPUT
+                           |
+                           v
+                  +------------------+
+                  |   Input Adapter  |
+                  |    Controller    |
+                  +--------+---------+
+                           |
+                           | Domain Models / Value Objects
+                           v
+                  +------------------+
+                  |   Input Port     |
+                  +--------+---------+
+                           |
+                           v
+                  +------------------+
+                  | Application      |
+                  |     Service      |
+                  |                  |
+                  | - User validation|
+                  | - Customer       |
+                  | - Authorization  |
+                  | - Ownership      |
+                  | - Product state  |
+                  | - Business rules |
+                  | - Domain action  |
+                  +--------+---------+
+                           |
+             +-------------+-------------+
+             |             |             |
+             v             v             v
+      BankAccount     Customer      Operation/Audit
+      Repository     Repository      Registration
+             |             |             |
+             v             v             v
+          Adapter       Adapter       Output Ports
+             |             |             |
+             +-------------+-------------+
+                           |
+                           v
+                     Infrastructure
+```
+
+The essential architectural boundary is:
+
+```text
+Domain/Application
+        |
+        | Output Ports
+        v
+Infrastructure Adapters
+```
+
+Never:
+
+```text
+Domain/Application
+        |
+        v
+Database
+```
+
+---
+
+# 49. Final Design Rule
+
+The Bank Account Management subdomain must follow this principle:
+
+> **Each application service is a cohesive business operation responsible for determining whether the operation can be executed, validating all required User, Customer, ownership, authorization, product-state, and operation-specific business conditions, executing valid Domain behavior, persisting through Output Ports, and generating the required Operation and Audit records.**
+
+The design should therefore avoid both insufficient responsibility and excessive fragmentation.
+
+### Insufficient
+
+```text
+find BankAccount
+      |
+      v
+change balance
+```
+
+### Excessively fragmented
+
+```text
+ValidateUserService
+        |
+ValidateCustomerService
+        |
+ValidateOwnershipService
+        |
+ValidateProductService
+        |
+ValidateBalanceService
+        |
+ExecuteOperationService
+```
+
+### Preferred
+
+```text
+WithdrawFundsService
+|
++-- Retrieve authoritative state
++-- Validate User
++-- Validate Customer
++-- Validate authorization
++-- Validate ownership
++-- Validate BankAccount
++-- Validate AccountStatus
++-- Validate withdrawal rules
++-- Execute Domain behavior
++-- Persist BankAccount
++-- Register Operation
++-- Register Audit
+```
+
+This pattern is the reference for the remaining Bank Account services.
+
+The objective is not to minimize the number of methods or services.
+
+The objective is to guarantee **business correctness while preserving DDD boundaries, Hexagonal Architecture, domain independence, cohesion, testability, and infrastructure isolation**.

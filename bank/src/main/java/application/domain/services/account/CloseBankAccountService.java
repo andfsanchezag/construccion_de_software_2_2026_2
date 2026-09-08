@@ -1,14 +1,16 @@
 package application.domain.services.account;
 
-import application.domain.exceptions.DomainException;
 import application.domain.exceptions.EntityNotFoundException;
+import application.domain.exceptions.UnauthorizedOperationException;
 import application.domain.models.BankAccount;
 import application.domain.models.Operation;
 import application.domain.models.User;
+import application.domain.ports.in.CloseBankAccountUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
+import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
-import application.domain.valueobjects.AccountStatus;
 import application.domain.valueobjects.OperationType;
+import application.domain.valueobjects.SystemRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,37 +22,62 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class CloseBankAccountService {
+public class CloseBankAccountService implements CloseBankAccountUseCase {
 
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
+    private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    public BankAccount execute(User requestingUser, BankAccount account) {
+    @Override
+    public BankAccount close(User requestingUser, BankAccount account) {
+        validateUser(requestingUser);
+
         Optional<BankAccount> storedOpt = bankAccountRepositoryPort.findByIdentifier(account);
         if (storedOpt.isEmpty()) {
             throw new EntityNotFoundException("BankAccount");
         }
         BankAccount stored = storedOpt.get();
-        validateCanClose(stored);
-        stored.setAccountStatus(AccountStatus.CLOSED);
+        validateAccess(requestingUser, stored);
+
+        stored.close();
+
         bankAccountRepositoryPort.update(stored);
-        Operation op = new Operation();
-        op.setOperationType(OperationType.ACCOUNT_CLOSING);
-        op.setExecutionDate(LocalDateTime.now());
-        op.setPerformedBy(requestingUser);
-        op.setAffectedProduct(stored);
-        Map<String, Object> details = new HashMap<>();
-        details.put("finalBalance", stored.getCurrentBalance());
-        registerOperationAndAuditService.execute(op, details);
+        registerCloseOperation(requestingUser, stored);
         return stored;
     }
 
-    private void validateCanClose(BankAccount account) {
-        if (AccountStatus.CLOSED.equals(account.getAccountStatus())) {
-            throw new DomainException("Account is already closed.");
+    private void validateUser(User user) {
+        if (user == null) {
+            throw new UnauthorizedOperationException("Requesting user must be provided.");
         }
-        if (account.getCurrentBalance().compareTo(BigDecimal.ZERO) != 0) {
-            throw new DomainException("Account cannot be closed with a non-zero balance.");
+        validateUserAuthorizationStatusService.execute(user);
+    }
+
+    private void validateAccess(User user, BankAccount stored) {
+        if (isEmployee(user)) {
+            return;
         }
+        if (user.getCustomer() == null
+                || stored.getOwner() == null
+                || !user.getCustomer().getIdentification().equals(stored.getOwner().getIdentification())) {
+            throw new UnauthorizedOperationException("User is not authorized to operate on this bank account.");
+        }
+    }
+
+    private boolean isEmployee(User user) {
+        return SystemRole.TELLER_EMPLOYEE.equals(user.getRole())
+                || SystemRole.COMMERCIAL_EMPLOYEE.equals(user.getRole())
+                || SystemRole.INTERNAL_ANALYST.equals(user.getRole());
+    }
+
+    private void registerCloseOperation(User user, BankAccount account) {
+        Operation op = new Operation();
+        op.setOperationType(OperationType.ACCOUNT_CLOSING);
+        op.setExecutionDate(LocalDateTime.now());
+        op.setPerformedBy(user);
+        op.setAffectedProduct(account);
+        Map<String, Object> details = new HashMap<>();
+        details.put("finalBalance", BigDecimal.ZERO);
+        registerOperationAndAuditService.execute(op, details);
     }
 }

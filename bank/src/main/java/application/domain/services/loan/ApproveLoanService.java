@@ -1,6 +1,7 @@
 package application.domain.services.loan;
 
 import application.domain.exceptions.EntityNotFoundException;
+import application.domain.exceptions.DomainException;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
@@ -12,11 +13,13 @@ import application.domain.valueobjects.OperationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +35,12 @@ public class ApproveLoanService {
         if (storedOpt.isEmpty()) {
             throw new EntityNotFoundException("Loan");
         }
+        
         Loan stored = storedOpt.get();
+        
+        if(loan.getApprovedAmount().compareTo(stored.getRequestedAmount()) > 0) {
+            throw new DomainException("Approved amount cannot be greater than requested amount.");
+        }
         stored.setLoanStatus(LoanStatus.APPROVED);
         stored.setApprovalDate(LocalDate.now());
         stored.setApprovedAmount(loan.getApprovedAmount());

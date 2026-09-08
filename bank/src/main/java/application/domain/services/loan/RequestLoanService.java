@@ -2,6 +2,8 @@ package application.domain.services.loan;
 
 import application.domain.exceptions.DomainException;
 import application.domain.exceptions.EntityNotFoundException;
+import application.domain.models.BankAccount;
+import application.domain.models.Customer;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
@@ -30,19 +32,21 @@ public class RequestLoanService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Loan execute(User user, Loan loan) {
-        Optional<application.domain.models.Customer> applicantOpt = customerRepositoryPort.findByIdentification(loan.getApplicant());
+        Optional<Customer> applicantOpt = customerRepositoryPort.findByIdentification(loan.getApplicant());
         if (applicantOpt.isEmpty()) {
             throw new EntityNotFoundException("Loan applicant");
         }
-        if (loan.getDestinationAccount() != null) {
-            Optional<application.domain.models.BankAccount> accountOpt = bankAccountRepositoryPort.findByIdentifier(loan.getDestinationAccount());
-            if (accountOpt.isEmpty()) {
+        Optional<BankAccount> accountOpt = bankAccountRepositoryPort.findByIdentifier(loan.getDestinationAccount());
+        if (accountOpt.isEmpty()) {
                 throw new EntityNotFoundException("Destination account");
-            }
         }
+        if (!applicantOpt.get().getIdentification().equals(accountOpt.get().getOwner().getIdentification())) {
+            throw new DomainException("The destination account does not belong to the loan applicant.");
+        }
+        
         validateRequestedAmount(loan);
         loan.setLoanStatus(LoanStatus.UNDER_REVIEW);
-        Loan saved = loanRepositoryPort.save(loan);
+        Loan saved = loanRepositoryPort.save(loan); 
         Operation op = new Operation();
         op.setOperationType(OperationType.LOAN_APPLICATION);
         op.setExecutionDate(LocalDateTime.now());
