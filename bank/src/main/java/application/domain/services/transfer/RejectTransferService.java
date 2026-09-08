@@ -6,6 +6,7 @@ import application.domain.models.Operation;
 import application.domain.models.Transfer;
 import application.domain.models.User;
 import application.domain.ports.out.TransferRepositoryPort;
+import application.domain.services.authorization.AuthorizeTransferApprovalService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
 import application.domain.valueobjects.OperationType;
 import application.domain.valueobjects.TransferStatus;
@@ -22,30 +23,38 @@ import java.util.Optional;
 public class RejectTransferService {
 
     private final TransferRepositoryPort transferRepositoryPort;
+    private final AuthorizeTransferApprovalService authorizeTransferApprovalService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(User user, Transfer transfer) {
+        if (transfer == null) {
+            throw new EntityNotFoundException("Transfer");
+        }
         Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
         if (storedOpt.isEmpty()) {
             throw new EntityNotFoundException("Transfer");
         }
         Transfer stored = storedOpt.get();
-        TransferStatus currentStatus = stored.getTransferStatus();
-        if (!TransferStatus.PENDING.equals(currentStatus)
-                && !TransferStatus.WAITING_FOR_APPROVAL.equals(currentStatus)) {
-            throw new DomainException("Transfer cannot be rejected from status " + currentStatus.getCode());
+        if (stored.getTransferStatus() == null) {
+            throw new DomainException("Transfer cannot be rejected from status UNKNOWN");
         }
-        String previousStatus = currentStatus.getCode();
-        stored.setTransferStatus(TransferStatus.REJECTED);
+        // Same authorization as approval (§10.4 consistent with approval process),
+        // valid from PENDING or WAITING_FOR_APPROVAL (§10.5).
+        User storedUser = authorizeTransferApprovalService.executeForRejection(user, stored);
+        String previousStatus = stored.getTransferStatus().getCode();
+        stored.markRejected();
         transferRepositoryPort.update(stored);
+        LocalDateTime rejectionDate = LocalDateTime.now();
         Operation op = new Operation();
         op.setOperationType(OperationType.TRANSFER_REJECTION);
-        op.setExecutionDate(LocalDateTime.now());
-        op.setPerformedBy(user);
+        op.setExecutionDate(rejectionDate);
+        op.setPerformedBy(storedUser);
         op.setAffectedProduct(stored);
         Map<String, Object> details = new HashMap<>();
         details.put("previousStatus", previousStatus);
         details.put("newStatus", TransferStatus.REJECTED.getCode());
+        details.put("rejectedBy", storedUser.getUsername());
+        details.put("rejectionDate", rejectionDate.toString());
         registerOperationAndAuditService.execute(op, details);
         return stored;
     }

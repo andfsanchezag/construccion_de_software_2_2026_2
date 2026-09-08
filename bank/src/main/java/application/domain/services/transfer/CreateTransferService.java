@@ -14,7 +14,6 @@ import application.domain.ports.out.UserRepositoryPort;
 import application.domain.services.operation.RegisterOperationAndAuditService;
 import application.domain.valueobjects.AccountStatus;
 import application.domain.valueobjects.OperationType;
-import application.domain.valueobjects.TransferStatus;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -35,26 +34,34 @@ public class CreateTransferService {
     private final UserRepositoryPort userRepositoryPort;
 
     public Transfer execute(Transfer transfer, User user, Customer customer) {
-        
+        if (transfer == null) {
+            throw new DomainException("Transfer must be provided.");
+        }
+        if (transfer.getAmount() == null) {
+            throw new DomainException("Transfer amount must be provided.");
+        }
         Optional<User> storedUserOpt = userRepositoryPort.findById(user);
         if (storedUserOpt.isEmpty()) {
             throw new EntityNotFoundException("User not found.");
         }
-        user=storedUserOpt.get();
-        customer = requestedCustomer(customer, user);
+        User storedUser = storedUserOpt.get();
+        customer = requestedCustomer(customer, storedUser);
+        if (transfer.getSourceAccount() == null || transfer.getDestinationAccount() == null) {
+            throw new DomainException("Source and destination accounts must be provided.");
+        }
 
         BankAccount source = bankAccountRepositoryPort.findByIdentifier(transfer.getSourceAccount())
                 .orElseThrow(() -> new EntityNotFoundException("Source account"));
         BankAccount destination = bankAccountRepositoryPort.findByIdentifier(transfer.getDestinationAccount())
                 .orElseThrow(() -> new EntityNotFoundException("Destination account"));
         validateAccounts(source, destination, transfer.getAmount());
-        if(!source.getOwner().getIdentification().equals(customer.getIdentification())){
+        if (source.getOwner() == null || customer.getIdentification() == null
+                || !customer.getIdentification().equals(source.getOwner().getIdentification())) {
             throw new DomainException("The provided customer does not own the source bank account.");
         }
         transfer.setCreationDate(LocalDateTime.now());
-        transfer.setTransferStatus(requiresApproval(transfer.getAmount())
-                ? TransferStatus.WAITING_FOR_APPROVAL
-                : TransferStatus.APPROVED);
+        transfer.setCreatedBy(storedUser);
+        transfer.assignInitialStatus(requiresApproval(transfer.getAmount()));
         Transfer saved = transferRepositoryPort.save(transfer);
         Operation op = new Operation();
         op.setOperationType(OperationType.TRANSFER_CREATION);
@@ -75,10 +82,14 @@ public class CreateTransferService {
         if (!AccountStatus.ACTIVE.equals(destination.getAccountStatus())) {
             throw new DomainException("Destination account is not active.");
         }
-        if (source.getIdentifier().equals(destination.getIdentifier())) {
+        if (source.getIdentifier() == null || destination.getIdentifier() == null
+                || source.getIdentifier().equals(destination.getIdentifier())) {
             throw new DomainException("Source and destination accounts must be different.");
         }
-        if (source.getCurrentBalance().compareTo(amount) < 0) {
+        if (amount == null) {
+            throw new DomainException("Transfer amount must be provided.");
+        }
+        if (source.getCurrentBalance() == null || source.getCurrentBalance().compareTo(amount) < 0) {
             throw new application.domain.exceptions.InsufficientBalanceException();
         }
     }

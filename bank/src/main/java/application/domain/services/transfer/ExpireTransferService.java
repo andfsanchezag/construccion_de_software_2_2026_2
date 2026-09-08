@@ -26,6 +26,9 @@ public class ExpireTransferService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(Transfer transfer) {
+        if (transfer == null) {
+            throw new EntityNotFoundException("Transfer");
+        }
         Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
         if (storedOpt.isEmpty()) {
             throw new EntityNotFoundException("Transfer");
@@ -35,12 +38,14 @@ public class ExpireTransferService {
             throw new DomainException("Only transfers awaiting approval can expire.");
         }
         validateExpirationWindow(stored);
-        stored.setTransferStatus(TransferStatus.EXPIRED);
+        stored.markExpired();
         transferRepositoryPort.update(stored);
         LocalDateTime expirationDate = LocalDateTime.now();
         Operation op = new Operation();
         op.setOperationType(OperationType.TRANSFER_EXPIRATION);
         op.setExecutionDate(expirationDate);
+        // System/process context (§11): no interactive User. RegisterOperationAndAuditService is null-safe.
+        op.setPerformedBy(null);
         op.setAffectedProduct(stored);
         Map<String, Object> details = new HashMap<>();
         details.put("reason", "Approval window expired");
@@ -50,7 +55,13 @@ public class ExpireTransferService {
     }
 
     private void validateExpirationWindow(Transfer transfer) {
-        int expirationMinutes = businessConfigurationPort.getTransferApprovalExpirationMinutes();
+        if (transfer.getCreationDate() == null) {
+            throw new DomainException("Transfer creation date must be provided.");
+        }
+        Integer expirationMinutes = businessConfigurationPort.getTransferApprovalExpirationMinutes();
+        if (expirationMinutes == null) {
+            throw new DomainException("Transfer approval expiration is not configured.");
+        }
         LocalDateTime expiresAt = transfer.getCreationDate().plusMinutes(expirationMinutes);
         if (LocalDateTime.now().isBefore(expiresAt)) {
             throw new DomainException("Transfer approval window has not yet expired.");

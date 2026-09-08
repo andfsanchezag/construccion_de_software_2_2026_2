@@ -26,24 +26,32 @@ public class ApproveTransferService {
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
     public Transfer execute(User user, Transfer transfer) {
+        if (transfer == null) {
+            throw new EntityNotFoundException("Transfer");
+        }
         Optional<Transfer> storedOpt = transferRepositoryPort.findByIdentifier(transfer);
         if (storedOpt.isEmpty()) {
             throw new EntityNotFoundException("Transfer");
         }
         Transfer stored = storedOpt.get();
-        authorizeTransferApprovalService.execute(user, stored);
-        stored.setTransferStatus(TransferStatus.APPROVED);
-        stored.setApprovalDate(LocalDateTime.now());
-        stored.setApprovedBy(user);
+        String previousStatus = stored.getTransferStatus() == null
+                ? "UNKNOWN"
+                : stored.getTransferStatus().getCode();
+        // Authoritative approver + BUSINESS_SUPERVISOR / ACTIVE / WAITING checks.
+        // Pure validator: no persistence/audit inside (single orchestration here).
+        User storedUser = authorizeTransferApprovalService.execute(user, stored);
+        LocalDateTime approvalDate = LocalDateTime.now();
+        stored.markApproved(storedUser, approvalDate);
         transferRepositoryPort.update(stored);
         Operation op = new Operation();
         op.setOperationType(OperationType.TRANSFER_APPROVAL);
-        op.setExecutionDate(LocalDateTime.now());
-        op.setPerformedBy(user);
+        op.setExecutionDate(approvalDate);
+        op.setPerformedBy(storedUser);
         op.setAffectedProduct(stored);
         Map<String, Object> details = new HashMap<>();
-        details.put("previousStatus", TransferStatus.WAITING_FOR_APPROVAL.getCode());
+        details.put("previousStatus", previousStatus);
         details.put("newStatus", TransferStatus.APPROVED.getCode());
+        details.put("approvedBy", storedUser.getUsername());
         details.put("approvalDate", stored.getApprovalDate().toString());
         registerOperationAndAuditService.execute(op, details);
         return stored;

@@ -36,7 +36,13 @@ public class RegisterOperationAndAuditService {
         auditLog.setOperationType(operation.getOperationType());
         auditLog.setOperationDate(LocalDateTime.now());
         auditLog.setPerformedBy(operation.getPerformedBy());
-        auditLog.setUserRole(operation.getPerformedBy().getRole());
+        // System/process operations (e.g. ExpireTransfer) have no interactive User.
+        // Keep audit registration null-safe instead of failing with NPE.
+        if (operation.getPerformedBy() != null) {
+            auditLog.setUserRole(operation.getPerformedBy().getRole());
+        } else {
+            auditLog.setUserRole(null);
+        }
         auditLog.setAffectedProduct(operation.getAffectedProduct());
         auditLog.setDetails(auditDetails);
 
