@@ -1,34 +1,64 @@
 # Customer Services
 
-## Introduction
+## 1. Purpose
 
-This document defines the services belonging to the **Customer Management** subdomain of the Banking Information Management System.
+This document defines the application/domain services belonging to the **Customer Management** subdomain of the Banking Information Management System.
 
-The services in this subdomain are responsible for the creation, consultation, modification, and lifecycle management of banking customers.
+The services are responsible for:
 
-The services operate exclusively with **Domain Models** and **Value Objects**. They must not depend directly on databases, persistence entities, repositories, frameworks, HTTP, REST, or other infrastructure technologies.
+1. Registering natural customers.
+2. Registering business customers.
+3. Consulting customers.
+4. Updating customer information.
+5. Changing customer status.
+6. Consulting products associated with a customer.
 
-When a service requires information that is not available in the Domain Models involved in the current operation, the service must obtain that information through an **Output Port**.
+The specification follows the established **DDD + Hexagonal Architecture (Ports & Adapters)** principles and uses the **Loan Services service pattern** as the structural reference.
 
-Output Ports are interfaces owned by the Domain layer and implemented by Output Adapters.
+All services operate on Domain Models and Value Objects. Infrastructure concerns are accessed exclusively through Output Ports.
 
 ---
 
-# Architectural Principles
+# 2. Architectural Principles
 
-## Domain Model Parameters
+## 2.1 Domain-first
 
-All Customer Services and their corresponding Input Ports must receive **Domain Models or Value Objects** as parameters.
+Business rules belong to the Domain layer.
 
-Services must never receive:
+Customer Services coordinate the execution of use cases but must not contain infrastructure-specific logic.
+
+The Domain must remain independent of:
+
+- Spring
+- Spring Data
+- JPA
+- Hibernate
+- MySQL
+- PostgreSQL
+- MongoDB
+- SQL
+- HTTP
+- REST
+- JSON
+- Persistence entities
+- Controllers
+- Infrastructure adapters
+
+---
+
+## 2.2 Domain Model Parameters
+
+Customer Services and their Input Ports must receive Domain Models or Value Objects.
+
+They must never receive:
 
 - `String` identifiers as substitutes for domain relationships.
 - Primitive identifiers.
-- Individual attributes that belong to a Domain Model.
-- Request DTOs.
+- Individual attributes belonging to a Domain Model.
+- REST Request DTOs.
 - Persistence entities.
 
-For example, the following approach is not allowed:
+### Incorrect
 
 ```java
 registerNaturalCustomer(
@@ -36,9 +66,9 @@ registerNaturalCustomer(
     String name,
     String email
 );
-````
+```
 
-The service must instead receive the corresponding Domain Model:
+### Correct
 
 ```java
 registerNaturalCustomer(
@@ -46,7 +76,9 @@ registerNaturalCustomer(
 );
 ```
 
-Likewise, the following is not allowed:
+Likewise:
+
+### Incorrect
 
 ```java
 changeCustomerStatus(
@@ -55,7 +87,7 @@ changeCustomerStatus(
 );
 ```
 
-The service must operate on the Domain Model:
+### Correct
 
 ```java
 changeCustomerStatus(
@@ -63,9 +95,15 @@ changeCustomerStatus(
 );
 ```
 
-The same principle applies to relationships between domain entities.
+The requested state must therefore be represented by the Domain Model or by a domain operation/value object defined by the domain model.
 
-For example, a business customer must contain:
+---
+
+## 2.3 Domain Relationships
+
+Domain relationships must be represented using Domain Models.
+
+For example:
 
 ```text
 BusinessCustomer
@@ -81,17 +119,15 @@ BusinessCustomer
     └── legalRepresentativeId : String
 ```
 
+Identifiers may exist inside Value Objects or be used by adapters to locate persistence records, but they must not replace domain relationships in the business layer.
+
 ---
 
-## External Information
+## 2.4 External Information
 
-A service may require information that is not available in the Domain Model received as a parameter.
-
-In these cases, the service must obtain the required information through an Output Port.
+When a validation or operation requires information that is not available in the Domain Model currently being processed, the service must use an Output Port.
 
 The service must never access a database directly.
-
-The interaction follows:
 
 ```text
 Domain Model
@@ -99,7 +135,7 @@ Domain Model
      ▼
 Customer Service
      │
-     ├── Domain validation
+     ├── Domain behavior / validation
      │
      └── Output Port
              │
@@ -107,62 +143,211 @@ Customer Service
        Output Adapter
              │
              ▼
-          Database
+       External Resource
 ```
 
-The Output Port exposes domain-oriented operations and must not expose database-specific concepts.
+Output Ports expose domain-oriented operations and must not expose:
+
+- SQL queries
+- JPA repositories
+- database connections
+- persistence entities
+- table names
+- infrastructure-specific objects
 
 ---
 
-# Customer Services
+# 3. Standard Customer Service Pattern
 
-The Customer Management subdomain contains the following services:
+Every Customer Service must follow the same high-level execution pattern whenever the use case changes or performs a significant business action:
 
-1. Register Natural Customer
-2. Register Business Customer
-3. Consult Customer
-4. Update Customer
-5. Change Customer Status
-6. Consult Customer Products
+```text
+Validate Input Domain Model
+        │
+        ▼
+Load Required Persistent State
+        │
+        ▼
+Validate Existence / Relationships
+        │
+        ▼
+Authorize Actor
+        │
+        ▼
+Execute Domain Behavior
+        │
+        ▼
+Persist Domain Model
+        │
+        ▼
+Register Operation
+        │
+        ▼
+Register AuditLog
+        │
+        ▼
+Return Domain Model
+```
+
+For read-only services, the persistence, Operation, and Audit steps are only included when required by the business rules.
+
+The service must not register an Operation or AuditLog when the business action fails.
 
 ---
 
-# 1. Register Natural Customer
+# 4. Service Contract Standard
 
-## Description
+Every service in this document defines, where applicable:
 
-Creates a new `NaturalCustomer` in the banking domain.
+- Description
+- Actor
+- Context
+- Input Domain Model
+- Input Port
+- Preconditions
+- Existence validation
+- Related entity validation
+- Ownership/relationship validation
+- Authorization
+- Domain validation
+- Domain behavior
+- State change
+- Persistence
+- Operation
+- Audit
+- Output
+- Exceptions
+- Output Ports
+- Processing flow
 
-The service constructs and validates the customer according to the business rules defined by the domain.
-
-The service receives a complete `NaturalCustomer` Domain Model rather than individual customer attributes.
+This makes every use case independently implementable and testable.
 
 ---
 
-## Input
+# 5. Customer Service Validation Strategy
+
+## 5.1 Domain-available information
+
+If the required information is already contained in a Domain Model or Value Object, validation must be performed using domain behavior.
+
+Examples:
+
+```text
+NaturalCustomer.birthDate
+Customer.customerStatus
+Customer.role
+BusinessCustomer.legalRepresentative
+```
+
+No Output Port should be called merely to validate information already available in the domain.
+
+---
+
+## 5.2 External information
+
+If the validation depends on persisted or external information, the service must use an Output Port.
+
+Examples:
+
+- Customer existence.
+- Identification uniqueness.
+- Existence of a legal representative in persistence.
+- Existing customer relationships.
+- Persisted banking products.
+- Actor/customer relationship when it cannot be established from the supplied domain objects.
+
+---
+
+# 6. Service Validation Matrix
+
+| Service | Actor / Context | Existence | Related Entities | Authorization | Domain Mutation | Persistence | Operation | Audit |
+|---|---|---|---|---|---|---|---|---|
+| Register Natural Customer | Customer or authorized banking employee, according to registration policy | Identification must not already exist | None | Required | Create customer | Yes | Yes | Yes |
+| Register Business Customer | Customer or authorized banking employee, according to registration policy | Business identification must not already exist | Legal representative must exist and be valid | Required | Create customer | Yes | Yes | Yes |
+| Consult Customer | Authenticated actor | Customer must exist | Ownership/association when applicable | Required | No | Read | No, unless audit policy requires | Usually no; if required, audit only |
+| Update Customer | Authorized actor | Customer must exist | Relationships must remain valid | Required | Update allowed fields | Yes | Yes | Yes |
+| Change Customer Status | Authorized banking actor | Customer must exist | None unless domain requires | Required | Change status | Yes | Yes | Yes |
+| Consult Customer Products | Authenticated actor | Customer must exist | Associated products | Required | No | Read | No, unless audit policy requires | Usually no; if required, audit only |
+
+**Note:** Exact actor restrictions must remain aligned with the authorization domain. This document does not invent a new role model.
+
+---
+
+# 7. Register Natural Customer
+
+## 7.1 Description
+
+Creates and persists a new `NaturalCustomer`.
+
+The service receives the complete Domain Model and validates all rules that can be determined from the domain object. Rules requiring persisted information are evaluated through Output Ports.
+
+---
+
+## 7.2 Actor
+
+The actor must be an authenticated and authorized actor according to the customer-registration policy.
+
+The service must not assume that every caller has permission to register customers.
+
+Authorization must be performed by the authorization mechanism through an Output Port or Domain Authorization Service.
+
+---
+
+## 7.3 Context
+
+The operation represents the creation of a new customer in the banking domain.
+
+---
+
+## 7.4 Input Port
+
+```java
+interface RegisterNaturalCustomerUseCase {
+
+    NaturalCustomer registerNaturalCustomer(
+        NaturalCustomer customer
+    );
+}
+```
+
+---
+
+## 7.5 Input
 
 ```text
 NaturalCustomer
 ```
 
-The model contains the information required to represent the customer, including:
+The model contains the attributes defined by the Customer Domain Model, including the applicable:
 
-* Identification
-* Name
-* Email
-* Phone number
-* Address
-* Birth date
-* Role
-* Customer status
+- Identification
+- Name
+- Email
+- Phone
+- Address
+- Birth date
+- Role
+- Customer status
 
-The exact attributes are defined by the Domain Model.
+The exact attribute set is defined by the Domain Model.
 
 ---
 
-## Domain Validation
+## 7.6 Preconditions
 
-### Age Validation
+Before registration:
+
+1. The supplied Domain Model must be structurally valid.
+2. The customer must satisfy all NaturalCustomer domain invariants.
+3. The actor must be authorized.
+4. No persisted customer may violate identification uniqueness.
+5. The initial customer status must be valid.
+
+---
+
+## 7.7 Domain Validation
+
+### Age
 
 The natural customer must be at least 18 years old.
 
@@ -170,96 +355,228 @@ The validation uses:
 
 ```text
 NaturalCustomer.birthDate
-```
-
-and the current date.
-
-This validation belongs entirely to the domain and does not require an Output Port.
-
-Conceptually:
-
-```text
-birthDate
-    │
-    ▼
++
 Current Date
+```
+
+This is a domain validation.
+
+The service must not obtain the customer's age from the database.
+
+---
+
+### Customer Status
+
+The initial `CustomerStatus` must be a valid state.
+
+`CustomerStatus` and `UserStatus` are independent concepts.
+
+Registering a customer must not implicitly create or modify a system user's status.
+
+---
+
+### Other Domain Invariants
+
+The resulting `NaturalCustomer` must satisfy all constraints defined by:
+
+- Domain Model
+- Value Objects
+- Domain invariants
+
+---
+
+## 7.8 External Validation
+
+### Identification Uniqueness
+
+The service must verify that no existing customer already uses the same identification.
+
+This requires persisted information and therefore uses:
+
+```text
+CustomerRepositoryPort
+```
+
+If the identification already exists:
+
+```text
+CustomerAlreadyExistsException
+```
+
+---
+
+## 7.9 Authorization
+
+The service must authorize the actor before persistence.
+
+The authorization decision must consider the actor represented by the appropriate Domain Model/Value Objects.
+
+Authorization must not be implemented in a controller.
+
+---
+
+## 7.10 Domain Behavior
+
+The service must execute the domain behavior responsible for creating the customer.
+
+Conceptually:
+
+```java
+NaturalCustomer registeredCustomer =
+    customer.register();
+```
+
+The exact method name is an implementation detail and must follow the actual Domain Model.
+
+The service must not duplicate domain invariants in application code.
+
+---
+
+## 7.11 Persistence
+
+After all validations, authorization, and domain behavior succeed:
+
+```text
+NaturalCustomer
+      │
+      ▼
+CustomerRepositoryPort
+      │
+      ▼
+Customer Persistence Adapter
+```
+
+The persisted representation remains an infrastructure concern.
+
+---
+
+## 7.12 Operation
+
+A successful customer registration is a business operation.
+
+The service must register the corresponding `Operation` through the appropriate Output Port.
+
+No Operation must be registered when registration fails.
+
+---
+
+## 7.13 Audit
+
+A successful registration must produce the corresponding `AuditLog` when required by the banking audit policy.
+
+The service must not access an audit database directly.
+
+---
+
+## 7.14 Output
+
+```text
+NaturalCustomer
+```
+
+The returned object is the resulting Domain Model.
+
+---
+
+## 7.15 Exceptions
+
+Possible exceptions include:
+
+- `InvalidCustomerException`
+- `CustomerAlreadyExistsException`
+- `UnauthorizedCustomerOperationException`
+- Domain-specific Value Object validation exceptions
+
+---
+
+## 7.16 Output Ports
+
+- `CustomerRepositoryPort`
+- `AuthorizationPort`
+- `OperationRepositoryPort`
+- `AuditLogRepositoryPort`
+
+---
+
+## 7.17 Processing Flow
+
+```text
+NaturalCustomer
+      │
+      ▼
+Validate Domain Model
+      │
+      ▼
+Validate Age / Domain Invariants
+      │
+      ▼
+Check Identification Uniqueness
+      │
+      ▼
+Authorize Actor
+      │
+      ▼
+Execute Customer Domain Behavior
+      │
+      ▼
+Persist Customer
+      │
+      ▼
+Register Operation
+      │
+      ▼
+Register AuditLog
+      │
+      ▼
+Return NaturalCustomer
+```
+
+---
+
+# 8. Register Business Customer
+
+## 8.1 Description
+
+Creates and persists a new `BusinessCustomer`.
+
+The legal representative is a domain relationship:
+
+```text
+BusinessCustomer
     │
-    ▼
-Age >= 18
+    └── legalRepresentative : NaturalCustomer
+```
+
+The service must not receive a separate legal-representative identifier.
+
+---
+
+## 8.2 Actor
+
+The actor must be authorized according to the customer-registration policy.
+
+---
+
+## 8.3 Context
+
+The operation creates a business customer and establishes its relationship with a natural customer acting as legal representative.
+
+---
+
+## 8.4 Input Port
+
+```java
+interface RegisterBusinessCustomerUseCase {
+
+    BusinessCustomer registerBusinessCustomer(
+        BusinessCustomer customer
+    );
+}
 ```
 
 ---
 
-### Identification Validation
-
-The customer's identification must be unique.
-
-Uniqueness cannot be determined from the `NaturalCustomer` object alone because it depends on previously persisted customers.
-
-Therefore, the service must use the appropriate Output Port.
-
-Conceptually:
-
-```text
-NaturalCustomer
-      │
-      └── identification
-               │
-               ▼
-       Customer Output Port
-               │
-               ▼
-       Existing Customer?
-```
-
-If another customer already has the same identification, the service must reject the registration.
-
----
-
-### Customer Status Validation
-
-The initial `CustomerStatus` must represent a valid state according to the Domain Model.
-
-The service must not use `UserStatus` for this validation.
-
-Customer state and system-user state are independent concepts.
-
----
-
-## Persistence
-
-Once the domain validations succeed, the service persists the customer through an Output Port.
-
-Conceptually:
-
-```text
-NaturalCustomer
-      │
-      ▼
-CustomerRepository
-      │
-      ▼
-Persistence Adapter
-      │
-      ▼
-Customer Storage
-```
-
-The service must not know whether the adapter uses MySQL, another relational database, or another persistence mechanism.
-
----
-
-# 2. Register Business Customer
-
-## Description
-
-Creates a new `BusinessCustomer` representing a legal business entity.
-
-The service establishes the business customer's information and its relationship with the legal representative.
-
----
-
-## Input
+## 8.5 Input
 
 ```text
 BusinessCustomer
@@ -267,159 +584,298 @@ BusinessCustomer
 
 The model contains the business information defined by the Domain Model.
 
-The legal representative is represented as a domain relationship:
+---
+
+## 8.6 Preconditions
+
+1. BusinessCustomer must be valid.
+2. Business identification must be unique.
+3. `legalRepresentative` must be present.
+4. The legal representative must be a valid `NaturalCustomer`.
+5. The legal representative must satisfy all domain conditions required to act in that role.
+6. The actor must be authorized.
+
+---
+
+## 8.7 Related Entity Validation
+
+The legal representative is represented directly by:
+
+```text
+NaturalCustomer
+```
+
+If the received model contains sufficient information, domain validations are performed directly.
+
+If persistence information is required, the service uses:
+
+```text
+CustomerRepositoryPort
+```
+
+The service must not replace the relationship with:
+
+```text
+String legalRepresentativeId
+```
+
+---
+
+## 8.8 External Validation
+
+The service must verify:
+
+- Business identification uniqueness.
+- Required existence of the legal representative.
+- Any persisted state required by the business rule.
+
+---
+
+## 8.9 Authorization
+
+The actor must be authorized before the business customer is persisted.
+
+---
+
+## 8.10 Domain Behavior
+
+The service executes the appropriate `BusinessCustomer` domain behavior to establish the valid customer state and relationship.
+
+The exact domain method is defined by the Domain Model.
+
+---
+
+## 8.11 Persistence
 
 ```text
 BusinessCustomer
-    │
-    └── legalRepresentative : NaturalCustomer
+      │
+      ▼
+CustomerRepositoryPort
+      │
+      ▼
+Persistence Adapter
 ```
 
-The service must not receive a separate `legalRepresentativeId : String`.
+The adapter translates the domain relationship into its persistence representation.
 
 ---
 
-## Domain Validation
+## 8.12 Operation
 
-### Business Identification Validation
-
-The business identification must be unique.
-
-Because uniqueness depends on persisted information, the service must use an Output Port to verify that another customer does not already use the identification.
+Successful registration generates the corresponding `Operation`.
 
 ---
 
-### Legal Representative Validation
+## 8.13 Audit
 
-The business customer must have a valid legal representative.
-
-The legal representative must be represented by a `NaturalCustomer`.
-
-If the complete `NaturalCustomer` is already available in the received `BusinessCustomer`, the service can perform the applicable domain validations directly.
-
-If additional information is required, the service must obtain it through an Output Port.
+Successful registration generates the corresponding `AuditLog` according to the audit policy.
 
 ---
 
-### Legal Representative State
-
-The service must validate the conditions required by the domain for a natural customer to act as legal representative.
-
-These validations must use the attributes and state of the `NaturalCustomer` Domain Model.
-
-If information outside the available model is required, the service must obtain it through an Output Port.
-
----
-
-## Persistence
-
-After successful validation, the service persists the `BusinessCustomer` through the customer Output Port.
-
-The persistence adapter is responsible for translating the domain relationship into the database representation.
-
-The domain itself continues to represent the relationship as:
+## 8.14 Output
 
 ```text
 BusinessCustomer
-    │
-    └── legalRepresentative : NaturalCustomer
 ```
 
 ---
 
-# 3. Consult Customer
+## 8.15 Exceptions
 
-## Description
+Possible exceptions include:
 
-Retrieves a customer from the system and returns the corresponding Domain Model.
-
-The service does not expose persistence entities or database-specific representations.
+- `InvalidCustomerException`
+- `CustomerAlreadyExistsException`
+- `CustomerNotFoundException`
+- `InvalidLegalRepresentativeException`
+- `UnauthorizedCustomerOperationException`
 
 ---
 
-## Input
+## 8.16 Output Ports
 
-The service receives a Domain Model representing the customer being consulted.
+- `CustomerRepositoryPort`
+- `AuthorizationPort`
+- `OperationRepositoryPort`
+- `AuditLogRepositoryPort`
 
-When the customer is not yet available in memory, the application boundary must provide the domain representation required by the service.
+---
 
-The service must not be defined as:
-
-```java
-consultCustomer(String customerId);
-```
-
-when the identifier represents a domain relationship.
-
-The service must operate on:
+## 8.17 Processing Flow
 
 ```text
-Customer
+BusinessCustomer
+      │
+      ▼
+Validate Domain Model
+      │
+      ▼
+Validate Legal Representative
+      │
+      ▼
+Validate Legal Representative State
+      │
+      ▼
+Check Business Identification Uniqueness
+      │
+      ▼
+Check Required Persisted Relationships
+      │
+      ▼
+Authorize Actor
+      │
+      ▼
+Execute Domain Behavior
+      │
+      ▼
+Persist BusinessCustomer
+      │
+      ▼
+Register Operation
+      │
+      ▼
+Register AuditLog
+      │
+      ▼
+Return BusinessCustomer
 ```
 
-or the appropriate Domain Model required by the use case.
-
 ---
 
-## Processing
+# 9. Consult Customer
 
-The service validates the received customer information and obtains any required external information through an Output Port.
+## 9.1 Description
 
-Conceptually:
-
-```text
-Customer
-   │
-   ▼
-Customer Service
-   │
-   ├── Domain validation
-   │
-   └── Output Port
-          │
-          ▼
-     Customer Data
-```
-
----
-
-## Customer Existence
-
-If the operation requires retrieving the persistent state of the customer, the service must use the customer Output Port.
-
-If the customer cannot be found, the service must raise the corresponding domain exception.
-
----
-
-## Authorization
-
-The service must verify that the requesting user is allowed to access the customer information.
-
-The authorization rules are:
-
-* `TELLER_EMPLOYEE`: may consult any customer.
-* `COMMERCIAL_EMPLOYEE`: may consult **any customer without restriction**.
-* `INTERNAL_ANALYST`: may consult any customer.
-* `NATURAL_CUSTOMER`: may consult only their own customer record.
-* `BUSINESS_OPERATOR` / `BUSINESS_SUPERVISOR`: may consult only the customer associated with their `User.customer`.
-
-Authorization must be evaluated using Domain Models and Value Objects.
-
-If external information is necessary, the service must obtain it through an Output Port.
-
-Authorization rules must not be implemented in controllers.
-
----
-
-## Output
+Retrieves a customer and returns its corresponding Domain Model.
 
 The service returns:
 
+- `NaturalCustomer`
+- `BusinessCustomer`
+
+through their common `Customer` abstraction.
+
+No persistence entity is exposed.
+
+---
+
+## 9.2 Actor
+
+The actor must be authenticated and authorized.
+
+---
+
+## 9.3 Input Port
+
+```java
+interface ConsultCustomerUseCase {
+
+    Customer consultCustomer(
+        Customer customer
+    );
+}
+```
+
+The Input Port must operate on the Domain Model rather than defining the use case as a primitive-ID operation.
+
+---
+
+## 9.4 Input
+
 ```text
 Customer
 ```
 
-which may represent:
+When the customer is not already fully loaded, the application boundary must construct the appropriate domain representation needed to identify the customer without violating the Domain Model parameter rule.
+
+---
+
+## 9.5 Preconditions
+
+1. The supplied domain representation must be valid.
+2. The customer must exist in persistence.
+3. The actor must be authorized.
+
+---
+
+## 9.6 Existence
+
+The service uses:
+
+```text
+CustomerRepositoryPort
+```
+
+to obtain the persisted customer.
+
+If the customer does not exist:
+
+```text
+CustomerNotFoundException
+```
+
+---
+
+## 9.7 Authorization
+
+The authorization rules are:
+
+| Actor | Permission |
+|---|---|
+| `TELLER_EMPLOYEE` | May consult any customer |
+| `COMMERCIAL_EMPLOYEE` | May consult any customer without restriction |
+| `INTERNAL_ANALYST` | May consult any customer |
+| `NATURAL_CUSTOMER` | May consult only their own customer |
+| `BUSINESS_OPERATOR` | May consult only the customer associated with `User.customer` |
+| `BUSINESS_SUPERVISOR` | May consult only the customer associated with `User.customer` |
+
+Authorization must be evaluated using Domain Models and Value Objects.
+
+When actor/customer association requires persisted information, the service obtains it through the appropriate Output Port.
+
+---
+
+## 9.8 Domain Behavior
+
+This is a read operation. No customer state is mutated.
+
+The service retrieves and returns the domain representation.
+
+---
+
+## 9.9 Persistence
+
+The service performs a read through:
+
+```text
+CustomerRepositoryPort
+```
+
+No persistence entity may leave the adapter layer.
+
+---
+
+## 9.10 Operation and Audit
+
+Consultation is not a state-changing business operation.
+
+Therefore:
+
+- No `Operation` is required by default.
+- No `AuditLog` is required by default.
+
+If banking policy requires auditing customer consultations, the service must register an audit event through the designated audit mechanism without creating a false business mutation.
+
+---
+
+## 9.11 Output
+
+```text
+Customer
+```
+
+The concrete returned type is:
 
 ```text
 NaturalCustomer
@@ -431,127 +887,351 @@ or:
 BusinessCustomer
 ```
 
-depending on the customer being consulted.
+---
+
+## 9.12 Exceptions
+
+Possible exceptions:
+
+- `CustomerNotFoundException`
+- `InvalidCustomerException`
+- `UnauthorizedCustomerOperationException`
 
 ---
 
-# 4. Update Customer
+## 9.13 Output Ports
 
-## Description
-
-Updates information belonging to an existing customer.
-
-The service receives the customer as a Domain Model and applies the appropriate domain changes.
-
-It must not receive individual attributes as separate parameters.
+- `CustomerRepositoryPort`
+- `AuthorizationPort`
+- `AuditLogRepositoryPort` only when consultation auditing is required
 
 ---
 
-## Input
+## 9.14 Processing Flow
+
+```text
+Customer
+      │
+      ▼
+Validate Domain Representation
+      │
+      ▼
+Retrieve Customer
+      │
+      ▼
+Validate Existence
+      │
+      ▼
+Authorize Actor
+      │
+      ▼
+Return Customer
+```
+
+If consultation auditing is required:
+
+```text
+Authorize
+   │
+   ▼
+Retrieve Customer
+   │
+   ▼
+Return Customer
+   │
+   └──► Register AuditLog
+```
+
+---
+
+# 10. Update Customer
+
+## 10.1 Description
+
+Updates allowed information belonging to an existing customer.
+
+The service receives the desired customer state as a Domain Model.
+
+It must not receive isolated attributes.
+
+---
+
+## 10.2 Actor
+
+The actor must be authorized to update the target customer.
+
+---
+
+## 10.3 Input Port
+
+```java
+interface UpdateCustomerUseCase {
+
+    Customer updateCustomer(
+        Customer customer
+    );
+}
+```
+
+---
+
+## 10.4 Input
 
 ```text
 Customer
 ```
 
-The received model represents the customer and the desired domain state.
+The supplied object represents the desired state.
+
+The service must compare or reconcile it with the persisted domain state where required.
 
 ---
 
-## Processing
+## 10.5 Preconditions
+
+1. Customer exists.
+2. Supplied Domain Model is valid.
+3. Only fields allowed by the domain may be changed.
+4. Resulting customer state satisfies all domain invariants.
+5. Relationships remain valid.
+6. New identification is unique if identification changes are allowed.
+7. Actor is authorized.
+
+---
+
+## 10.6 Load Existing Customer
+
+The service retrieves the current persisted state through:
 
 ```text
-Customer
-   │
-   ▼
-Validate Domain State
-   │
-   ▼
-Apply Domain Changes
-   │
-   ▼
-Validate Business Rules
-   │
-   ▼
-Customer Output Port
+CustomerRepositoryPort
+```
+
+The service must not assume that the supplied model alone is sufficient to determine whether an update is valid.
+
+---
+
+## 10.7 Authorization
+
+Authorization must be evaluated against the actor and the existing/target customer.
+
+Where applicable:
+
+- Employees may update according to their assigned permissions.
+- A customer may update only information belonging to themselves.
+- Business users may update only their associated customer where permitted.
+
+The exact permission matrix belongs to the Authorization domain.
+
+---
+
+## 10.8 Allowed Changes
+
+The service must distinguish between:
+
+```text
+Mutable customer information
+```
+
+and:
+
+```text
+Identity / lifecycle attributes governed by another use case
+```
+
+Customer status must not be changed implicitly by `Update Customer`; status has its own dedicated use case.
+
+Likewise, fields whose mutation has a dedicated business use case must not be silently changed through a generic update.
+
+---
+
+## 10.9 Domain Behavior
+
+The service applies the permitted changes through domain behavior.
+
+Conceptually:
+
+```java
+existingCustomer.updateFrom(
+    customer
+);
+```
+
+The exact method is determined by the Domain Model.
+
+The service must not implement domain invariants through arbitrary field assignment.
+
+---
+
+## 10.10 Domain Validation
+
+The resulting customer must satisfy:
+
+- Valid identification, when applicable.
+- Valid name.
+- Valid email.
+- Valid phone.
+- Valid address.
+- Valid customer relationships.
+- Valid CustomerStatus.
+- All Value Object constraints.
+- All Customer domain invariants.
+
+---
+
+## 10.11 Identification Uniqueness
+
+If identification changes are permitted by the domain, the service must verify uniqueness through:
+
+```text
+CustomerRepositoryPort
+```
+
+The check must exclude the customer currently being updated.
+
+If another customer already owns the new identification:
+
+```text
+CustomerAlreadyExistsException
 ```
 
 ---
 
-## Domain Validation
+## 10.12 Persistence
 
-### Customer Existence
+Only after successful domain behavior:
 
-The customer must exist in the system before it can be updated.
-
-If persistence information is required, the service must use the Customer Output Port.
-
----
-
-### Updated Information
-
-The resulting Domain Model must satisfy all domain constraints.
-
-Examples include:
-
-* Valid identification.
-* Valid name.
-* Valid email.
-* Valid phone number.
-* Valid address.
-* Valid customer status.
-* Valid relationships with other domain entities.
-
-The exact validation rules belong to the Domain Model and Value Objects.
+```text
+Updated Customer
+      │
+      ▼
+CustomerRepositoryPort
+```
 
 ---
 
-### Identification Uniqueness
+## 10.13 Operation
 
-If identification is allowed to change, the new identification must remain unique.
+A successful update is a business operation and must generate the corresponding `Operation` according to the operation policy.
 
-This cannot be determined exclusively from the Domain Model.
-
-The service must use an Output Port to verify uniqueness against persisted customers.
+No operation is recorded when validation, authorization, or persistence fails.
 
 ---
 
-### Authorization
+## 10.14 Audit
 
-The user performing the operation must have permission to update the customer.
+A successful update generates the corresponding `AuditLog` according to the audit policy.
 
-Authorization must use Domain Models and Value Objects whenever the required information is available in the domain.
-
-External information must be obtained through Output Ports.
+The audit must represent the actual successful change.
 
 ---
 
-## Persistence
+## 10.15 Output
 
-After the domain operation succeeds, the resulting `Customer` is persisted through the appropriate Output Port.
+```text
+Customer
+```
 
-The service must not manipulate persistence entities or database records directly.
+The returned object represents the final persisted domain state.
 
 ---
 
-# 5. Change Customer Status
+## 10.16 Exceptions
 
-## Description
+Possible exceptions:
+
+- `CustomerNotFoundException`
+- `InvalidCustomerException`
+- `CustomerAlreadyExistsException`
+- `UnauthorizedCustomerOperationException`
+- Domain-specific Value Object exceptions
+
+---
+
+## 10.17 Output Ports
+
+- `CustomerRepositoryPort`
+- `AuthorizationPort`
+- `OperationRepositoryPort`
+- `AuditLogRepositoryPort`
+
+---
+
+## 10.18 Processing Flow
+
+```text
+Customer (desired state)
+      │
+      ▼
+Validate Domain Representation
+      │
+      ▼
+Load Existing Customer
+      │
+      ▼
+Validate Existence
+      │
+      ▼
+Authorize Actor
+      │
+      ▼
+Validate Allowed Changes
+      │
+      ▼
+Validate External Rules
+      │
+      ▼
+Execute Domain Update Behavior
+      │
+      ▼
+Persist Updated Customer
+      │
+      ▼
+Register Operation
+      │
+      ▼
+Register AuditLog
+      │
+      ▼
+Return Updated Customer
+```
+
+---
+
+# 11. Change Customer Status
+
+## 11.1 Description
 
 Changes the `CustomerStatus` of an existing customer.
 
-Customer status represents the state of the customer's banking relationship and is independent of the status of a system `User`.
+Customer status represents the state of the customer's banking relationship.
+
+It is independent from `UserStatus`.
+
+Changing a customer status must not automatically change the status of any related system user.
 
 ---
 
-## Input
+## 11.2 Actor
 
-```text
-Customer
+The actor must have explicit authorization to perform customer status changes.
+
+---
+
+## 11.3 Input Port
+
+```java
+interface ChangeCustomerStatusUseCase {
+
+    Customer changeCustomerStatus(
+        Customer customer
+    );
+}
 ```
 
-The new state must be represented within the Domain Model or through a domain operation that changes the customer's status.
+The requested target status must be represented by the Domain Model or by a domain value/command object if such a type is defined by the Domain Model.
 
-The service must not receive:
+The service must not use:
 
 ```java
 changeCustomerStatus(
@@ -560,59 +1240,70 @@ changeCustomerStatus(
 );
 ```
 
-The service must operate on the customer Domain Model.
+---
+
+## 11.4 Preconditions
+
+1. Customer exists.
+2. Current CustomerStatus is valid.
+3. Target CustomerStatus is valid.
+4. Transition from current state to target state is allowed.
+5. Actor is authorized.
 
 ---
 
-## Processing
+## 11.5 Current State
+
+The service must operate on the current persisted customer state.
+
+If the supplied representation does not contain sufficient current state, the service retrieves it through:
 
 ```text
-Customer
-   │
-   ▼
-Validate Current State
-   │
-   ▼
-Validate Status Transition
-   │
-   ▼
-Change CustomerStatus
-   │
-   ▼
-Persist Customer
+CustomerRepositoryPort
 ```
 
 ---
 
-## Domain Validation
+## 11.6 Status Transition
 
-### Current Status
+The domain determines whether a transition is valid.
 
-The service must evaluate the customer's current `CustomerStatus`.
-
----
-
-### Status Transition
-
-The domain determines whether the requested transition is valid.
-
-For example:
+Examples from the current Customer specification include:
 
 ```text
-ACTIVE → BLOCKED
-ACTIVE → INACTIVE
+ACTIVE  → BLOCKED
+ACTIVE  → INACTIVE
 BLOCKED → ACTIVE
 ```
 
-The exact allowed transitions belong to the domain rules.
+The definitive transition matrix belongs to the Customer Domain Model.
 
-The database must never determine whether a state transition is valid.
+The database must never determine whether a transition is valid.
 
 ---
 
-### User Status Independence
+## 11.7 Domain Behavior
 
-Changing the customer status must not automatically change `UserStatus`.
+The service must invoke the domain behavior responsible for changing status.
+
+Conceptually:
+
+```java
+customer.changeStatus(targetStatus);
+```
+
+The exact method and target-state representation must follow the Domain Model.
+
+---
+
+## 11.8 User Status Independence
+
+The following concepts must remain independent:
+
+```text
+CustomerStatus
+UserStatus
+```
 
 For example:
 
@@ -620,95 +1311,241 @@ For example:
 CustomerStatus = BLOCKED
 ```
 
-does not necessarily imply:
+does not automatically mean:
 
 ```text
 UserStatus = BLOCKED
 ```
 
-These represent different business concepts.
+Any user-status change requires its own business rule and use case.
 
 ---
 
-## Persistence
+## 11.9 Persistence
 
-The updated customer is persisted through the Customer Output Port.
-
----
-
-# 6. Consult Customer Products
-
-## Description
-
-Retrieves the banking products and services associated with a customer.
-
-The result may include:
+After successful domain behavior:
 
 ```text
-BankAccount
-Loan
-Transfer
+Customer
+      │
+      ▼
+CustomerRepositoryPort
 ```
-
-All products are returned as Domain Models.
 
 ---
 
-## Input
+## 11.10 Operation
+
+A successful customer status change generates an `Operation`.
+
+---
+
+## 11.11 Audit
+
+A successful status change generates an `AuditLog` containing the actual business action and relevant resulting state according to the Audit domain specification.
+
+No audit must be registered for a failed transition.
+
+---
+
+## 11.12 Output
 
 ```text
 Customer
 ```
 
-The service must receive the customer Domain Model and must not receive only:
-
-```text
-customerId : String
-```
-
-when the identifier is being used as a substitute for the domain relationship.
+The returned model contains the resulting CustomerStatus.
 
 ---
 
-## Processing
+## 11.13 Exceptions
 
-The service verifies the customer and retrieves the associated products through their corresponding Output Ports.
+Possible exceptions:
+
+- `CustomerNotFoundException`
+- `InvalidCustomerException`
+- `InvalidCustomerStatusException`
+- `UnauthorizedCustomerOperationException`
+
+---
+
+## 11.14 Output Ports
+
+- `CustomerRepositoryPort`
+- `AuthorizationPort`
+- `OperationRepositoryPort`
+- `AuditLogRepositoryPort`
+
+---
+
+## 11.15 Processing Flow
+
+```text
+Customer
+      │
+      ▼
+Load Current Customer
+      │
+      ▼
+Validate Existence
+      │
+      ▼
+Authorize Actor
+      │
+      ▼
+Validate Current Status
+      │
+      ▼
+Validate Status Transition
+      │
+      ▼
+Execute changeStatus(...)
+      │
+      ▼
+Persist Customer
+      │
+      ▼
+Register Operation
+      │
+      ▼
+Register AuditLog
+      │
+      ▼
+Return Customer
+```
+
+---
+
+# 12. Consult Customer Products
+
+## 12.1 Description
+
+Retrieves the banking products associated with a customer.
+
+The current domain model identifies the following products/services for this consultation:
+
+- `BankAccount`
+- `Loan`
+- `Transfer`
+
+All returned objects must be Domain Models.
+
+---
+
+## 12.2 Actor
+
+The actor must be authenticated and authorized to consult the customer's products.
+
+The authorization must consider the relationship between the actor and the target customer.
+
+---
+
+## 12.3 Input Port
+
+```java
+interface ConsultCustomerProductsUseCase {
+
+    CustomerProducts consultCustomerProducts(
+        Customer customer
+    );
+}
+```
+
+`CustomerProducts` represents a conceptual aggregate/return structure containing the applicable Domain Models.
+
+If the project Domain Model defines another return abstraction, that type must be used instead.
+
+---
+
+## 12.4 Input
+
+```text
+Customer
+```
+
+The service must not be defined only as:
+
+```java
+consultCustomerProducts(
+    String customerId
+);
+```
+
+when the identifier is being used as a substitute for the customer relationship.
+
+---
+
+## 12.5 Preconditions
+
+1. Customer representation is valid.
+2. Customer exists.
+3. Actor is authorized.
+4. Product associations are retrieved through the appropriate Output Ports.
+
+---
+
+## 12.6 Customer Existence
+
+The service uses:
+
+```text
+CustomerRepositoryPort
+```
+
+when customer existence must be verified against persistence.
+
+If the customer does not exist:
+
+```text
+CustomerNotFoundException
+```
+
+---
+
+## 12.7 Authorization
+
+The authorization rules must be evaluated before exposing product information.
+
+For actors whose access depends on customer ownership or association, the service must validate the corresponding Domain Model relationship.
+
+---
+
+## 12.8 Product Retrieval
+
+The service obtains the products through dedicated Output Ports:
+
+```text
+BankAccountRepositoryPort
+LoanRepositoryPort
+TransferRepositoryPort
+```
 
 Conceptually:
 
 ```text
-                         Customer
-                            │
-                            ▼
-                  Customer Product Service
-                            │
-             ┌──────────────┼──────────────┐
-             │              │              │
-             ▼              ▼              ▼
-     BankAccountPort    LoanPort      TransferPort
-             │              │              │
-             └──────────────┼──────────────┘
-                            ▼
-                     Domain Products
+                 Customer
+                    │
+                    ▼
+        Consult Customer Products
+                    │
+          ┌─────────┼─────────┐
+          │         │         │
+          ▼         ▼         ▼
+    BankAccount    Loan     Transfer
+       Port         Port       Port
+          │         │         │
+          └─────────┼─────────┘
+                    ▼
+             Domain Models
 ```
 
 ---
 
-## Product Relationships
+## 12.9 Domain Relationships
 
-The resulting relationships remain represented through Domain Models:
+Relationships returned to the Domain/Application layer must remain represented by Domain Models.
 
-```text
-Customer
-   │
-   ├── BankAccount
-   │
-   ├── Loan
-   │
-   └── Transfer
-```
-
-The service must not construct relationships such as:
+The service must not create business-layer structures such as:
 
 ```text
 customerId
@@ -717,324 +1554,433 @@ loanId
 transferId
 ```
 
-as replacements for domain relationships.
+as substitutes for relationships.
 
-Identifiers may be used internally by persistence adapters to locate records, but they must not replace Domain Model relationships in the business layer.
-
----
-
-## Output Ports
-
-The service may require the following Output Ports:
-
-```text
-BankAccountRepository
-LoanRepository
-TransferRepository
-```
-
-These interfaces belong to:
-
-```text
-domain/ports/out/
-```
-
-and their implementations belong to the appropriate persistence adapters.
+Persistence adapters may use identifiers internally to locate records.
 
 ---
 
-# Output Ports
+## 12.10 Empty Product Collections
 
-Customer Services communicate with external resources exclusively through Output Ports.
+A customer may legitimately have no products.
 
-The following ports are relevant to this subdomain.
-
----
-
-## CustomerRepository
-
-Provides the persistence capabilities required by Customer Services.
-
-Conceptual responsibilities include:
-
-```text
-save(Customer)
-find(Customer)
-exists(Customer)
-```
-
-The exact methods should be defined according to the use cases and should receive Domain Models or Value Objects rather than persistence entities.
-
-For example:
-
-```java
-interface CustomerRepository {
-
-    Customer save(Customer customer);
-
-    boolean exists(Customer customer);
-
-    Customer find(Customer customer);
-}
-```
-
-The exact method signatures are implementation decisions and may be refined in the detailed port documentation.
-
----
-
-## BankAccountRepository
-
-Provides access to `BankAccount` Domain Models when Customer Services need to retrieve products associated with a customer.
-
----
-
-## LoanRepository
-
-Provides access to `Loan` Domain Models when Customer Services need to retrieve products associated with a customer.
-
----
-
-## TransferRepository
-
-Provides access to `Transfer` Domain Models when Customer Services need to retrieve products associated with a customer.
-
----
-
-# Service and Port Interaction
-
-The dependency direction must remain:
-
-```text
-                 Domain
-                    │
-          ┌─────────┴─────────┐
-          │                   │
-   Customer Services     Output Ports
-                              │
-                              ▼
-                       Output Adapters
-                              │
-                              ▼
-                          Database
-```
-
-The service depends on the interface:
-
-```text
-CustomerRepository
-```
-
-and never on:
-
-```text
-MySQL
-JPA
-Spring Data
-SQL
-Repository Implementation
-```
-
-The adapter implements the port:
-
-```text
-CustomerRepository
-        ▲
-        │
-        │ implements
-        │
-CustomerPersistenceAdapter
-```
-
----
-
-# Validation Strategy
-
-All Customer Services must follow this validation strategy.
-
-## Domain-Available Information
-
-If the required information is already present in the Domain Model, the validation must be performed directly in the Domain.
-
-Examples:
-
-```text
-NaturalCustomer.birthDate
-Customer.status
-BusinessCustomer.legalRepresentative
-Customer.role
-```
-
-No Output Port should be used merely to validate information already contained in the domain object.
-
----
-
-## External Information
-
-If the validation requires information outside the Domain Model, the service must use an Output Port.
-
-Examples:
-
-```text
-Identification uniqueness
-Customer existence
-Existing customer relationships
-Persisted customer products
-```
+An empty result must not automatically be treated as an error.
 
 Conceptually:
 
 ```text
-             Validation Required
-                     │
-            ┌────────┴────────┐
-            │                 │
-       Domain data       External data
-            │                 │
-            ▼                 ▼
-     Domain validation   Output Port
-                              │
-                              ▼
-                       External Resource
+Customer
+   │
+   ├── BankAccounts = []
+   ├── Loans = []
+   └── Transfers = []
 ```
+
+The exact collection/return type belongs to the Domain/Application contract.
 
 ---
 
-# Domain Model Rule
+## 12.11 Domain Behavior
 
-All services in this subdomain must comply with the following rule:
+This is a read-only use case.
 
-> **Service methods must receive Domain Models or Value Objects as parameters. They must never receive primitive values, Strings, identifiers, Request DTOs, persistence entities, or isolated attributes that represent part of a Domain Model.**
-
-For example:
-
-### Incorrect
-
-```java
-registerNaturalCustomer(
-    String identification,
-    String name,
-    String email
-);
-```
-
-### Correct
-
-```java
-registerNaturalCustomer(
-    NaturalCustomer customer
-);
-```
+No Customer, BankAccount, Loan, or Transfer state is modified.
 
 ---
 
-### Incorrect
+## 12.12 Operation and Audit
 
-```java
-registerBusinessCustomer(
-    BusinessCustomer customer,
-    String legalRepresentativeId
-);
-```
+No business `Operation` is generated by default because this use case does not mutate a banking product.
 
-### Correct
+If consultation auditing is required by the banking audit policy, an `AuditLog` may be registered through the appropriate audit mechanism.
 
-```java
-registerBusinessCustomer(
-    BusinessCustomer customer
-);
-```
+---
 
-with:
+## 12.13 Output
+
+Conceptually:
 
 ```text
-BusinessCustomer
-    │
-    └── legalRepresentative : NaturalCustomer
+CustomerProducts
+    ├── BankAccount[]
+    ├── Loan[]
+    └── Transfer[]
+```
+
+All returned elements are Domain Models.
+
+---
+
+## 12.14 Exceptions
+
+Possible exceptions:
+
+- `CustomerNotFoundException`
+- `InvalidCustomerException`
+- `UnauthorizedCustomerOperationException`
+
+Product-specific retrieval exceptions may be propagated when defined by the corresponding subdomain.
+
+---
+
+## 12.15 Output Ports
+
+- `CustomerRepositoryPort`
+- `BankAccountRepositoryPort`
+- `LoanRepositoryPort`
+- `TransferRepositoryPort`
+- `AuthorizationPort`
+- `AuditLogRepositoryPort` only when consultation auditing is required
+
+---
+
+## 12.16 Processing Flow
+
+```text
+Customer
+      │
+      ▼
+Validate Domain Representation
+      │
+      ▼
+Validate Customer Existence
+      │
+      ▼
+Authorize Actor
+      │
+      ▼
+Retrieve Bank Accounts
+      │
+      ▼
+Retrieve Loans
+      │
+      ▼
+Retrieve Transfers
+      │
+      ▼
+Build CustomerProducts
+      │
+      ▼
+Return Domain Models
 ```
 
 ---
 
-### Incorrect
+# 13. Input Ports
 
-```java
-consultCustomer(String customerId);
+The Customer Management subdomain exposes the following Input Ports:
+
+```text
+RegisterNaturalCustomerUseCase
+RegisterBusinessCustomerUseCase
+ConsultCustomerUseCase
+UpdateCustomerUseCase
+ChangeCustomerStatusUseCase
+ConsultCustomerProductsUseCase
 ```
 
-### Correct
-
-```java
-consultCustomer(Customer customer);
-```
-
----
-
-### Incorrect
-
-```java
-updateCustomer(
-    String customerId,
-    String email,
-    String phone
-);
-```
-
-### Correct
-
-```java
-updateCustomer(Customer customer);
-```
-
----
-
-# Input Port Rule
-
-The same Domain Model parameter rule applies to Input Ports.
-
-Input Ports represent use cases and must expose operations using Domain Models and Value Objects.
-
-For example:
+Conceptually:
 
 ```java
 interface RegisterNaturalCustomerUseCase {
-
     NaturalCustomer registerNaturalCustomer(
         NaturalCustomer customer
     );
 }
+
+interface RegisterBusinessCustomerUseCase {
+    BusinessCustomer registerBusinessCustomer(
+        BusinessCustomer customer
+    );
+}
+
+interface ConsultCustomerUseCase {
+    Customer consultCustomer(
+        Customer customer
+    );
+}
+
+interface UpdateCustomerUseCase {
+    Customer updateCustomer(
+        Customer customer
+    );
+}
+
+interface ChangeCustomerStatusUseCase {
+    Customer changeCustomerStatus(
+        Customer customer
+    );
+}
+
+interface ConsultCustomerProductsUseCase {
+    CustomerProducts consultCustomerProducts(
+        Customer customer
+    );
+}
 ```
 
-The Input Adapter is responsible for converting external representations into Domain Models before invoking the Input Port.
+Input Ports must not expose:
 
-The flow is:
-
-```text
-HTTP Request
-      │
-      ▼
-Request DTO
-      │
-      ▼
-Mapper
-      │
-      ▼
-NaturalCustomer
-      │
-      ▼
-Input Port
-      │
-      ▼
-Customer Service
-```
-
-DTOs therefore never enter the Domain layer.
+- REST DTOs.
+- Persistence entities.
+- Primitive IDs as business relationships.
+- Infrastructure-specific types.
 
 ---
 
-# Exceptions
+# 14. Output Ports
 
-Customer Services must use Domain Exceptions for business rule violations.
+## 14.1 CustomerRepositoryPort
 
-Conceptual examples include:
+Responsible for customer persistence and retrieval.
+
+Conceptual contract:
+
+```java
+interface CustomerRepositoryPort {
+
+    Customer save(Customer customer);
+
+    Customer find(Customer customer);
+
+    boolean exists(Customer customer);
+}
+```
+
+The exact signatures may be refined by the global Output Port specification, but the port must remain domain-oriented.
+
+### Responsibilities
+
+- Persist Customer Domain Models.
+- Retrieve Customer Domain Models.
+- Verify customer existence.
+- Support uniqueness validations when required.
+
+### Must not expose
+
+- `JpaRepository`
+- `EntityManager`
+- SQL
+- persistence entities
+- table names
+
+---
+
+## 14.2 BankAccountRepositoryPort
+
+Responsible for retrieving `BankAccount` Domain Models associated with a customer.
+
+Conceptually:
+
+```java
+interface BankAccountRepositoryPort {
+
+    List<BankAccount> findByCustomer(
+        Customer customer
+    );
+}
+```
+
+The exact method signature must follow the canonical Bank Account Output Port specification.
+
+---
+
+## 14.3 LoanRepositoryPort
+
+Responsible for retrieving `Loan` Domain Models associated with a customer.
+
+Conceptually:
+
+```java
+interface LoanRepositoryPort {
+
+    List<Loan> findByCustomer(
+        Customer customer
+    );
+}
+```
+
+The exact method signature must follow the canonical Loan Output Port specification.
+
+---
+
+## 14.4 TransferRepositoryPort
+
+Responsible for retrieving `Transfer` Domain Models associated with a customer.
+
+Conceptually:
+
+```java
+interface TransferRepositoryPort {
+
+    List<Transfer> findByCustomer(
+        Customer customer
+    );
+}
+```
+
+The exact method signature must follow the canonical Transfer Output Port specification.
+
+---
+
+## 14.5 AuthorizationPort
+
+Responsible for obtaining authorization decisions when authorization information cannot be resolved exclusively from the Domain Models available to the service.
+
+Conceptually:
+
+```java
+interface AuthorizationPort {
+
+    boolean isAuthorized(
+        Person actor,
+        Customer customer,
+        AuthorizationAction action
+    );
+}
+```
+
+The canonical Authorization domain specification determines the definitive signature and authorization model.
+
+The port must not expose infrastructure authorization mechanisms.
+
+---
+
+## 14.6 OperationRepositoryPort
+
+Responsible for registering successful business Operations.
+
+Conceptually:
+
+```java
+interface OperationRepositoryPort {
+
+    Operation save(Operation operation);
+}
+```
+
+Only successful business actions must generate Operations.
+
+---
+
+## 14.7 AuditLogRepositoryPort
+
+Responsible for registering audit records.
+
+Conceptually:
+
+```java
+interface AuditLogRepositoryPort {
+
+    AuditLog save(AuditLog auditLog);
+}
+```
+
+The exact audit structure belongs to the Audit domain.
+
+Customer Services must not construct infrastructure-specific audit records.
+
+---
+
+# 15. Service-to-Port Matrix
+
+| Service | Customer | Bank Account | Loan | Transfer | Authorization | Operation | Audit |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Register Natural Customer | ✓ | | | | ✓ | ✓ | ✓ |
+| Register Business Customer | ✓ | | | | ✓ | ✓ | ✓ |
+| Consult Customer | ✓ | | | | ✓ | | Optional |
+| Update Customer | ✓ | | | | ✓ | ✓ | ✓ |
+| Change Customer Status | ✓ | | | | ✓ | ✓ | ✓ |
+| Consult Customer Products | ✓ | ✓ | ✓ | ✓ | ✓ | | Optional |
+
+---
+
+# 16. Authorization Matrix
+
+The following matrix applies to customer consultation based on the current Customer specification.
+
+| Actor | Consult Any Customer | Consult Own Customer |
+|---|---:|---:|
+| `TELLER_EMPLOYEE` | Yes | Yes |
+| `COMMERCIAL_EMPLOYEE` | Yes | Yes |
+| `INTERNAL_ANALYST` | Yes | Yes |
+| `NATURAL_CUSTOMER` | No | Yes |
+| `BUSINESS_OPERATOR` | No | Yes, associated customer only |
+| `BUSINESS_SUPERVISOR` | No | Yes, associated customer only |
+
+For mutation services, the Authorization domain is authoritative for the final permission matrix.
+
+Customer Services must invoke authorization rather than duplicating role-permission rules throughout each service.
+
+---
+
+# 17. Operation and Audit Policy
+
+## 17.1 Mutating services
+
+The following successful operations are business actions:
+
+- Register Natural Customer
+- Register Business Customer
+- Update Customer
+- Change Customer Status
+
+They must register:
+
+```text
+Operation
+AuditLog
+```
+
+through the corresponding domain/output mechanisms.
+
+---
+
+## 17.2 Read-only services
+
+The following services do not mutate the domain:
+
+- Consult Customer
+- Consult Customer Products
+
+They do not create an `Operation` by default.
+
+An `AuditLog` may still be created when banking security/audit policy requires recording sensitive consultations.
+
+---
+
+## 17.3 Failure rule
+
+The sequence is transactional from the business perspective:
+
+```text
+Validation failure
+      │
+      └──► No Operation
+           No AuditLog
+```
+
+```text
+Authorization failure
+      │
+      └──► No Operation
+           No AuditLog
+```
+
+```text
+Domain behavior failure
+      │
+      └──► No Operation
+           No AuditLog
+```
+
+The Operation and Audit records must represent an actual successful business action.
+
+---
+
+# 18. Exception Catalog
+
+Customer Services may use the following domain exceptions:
 
 ```text
 CustomerAlreadyExistsException
@@ -1045,57 +1991,292 @@ InvalidLegalRepresentativeException
 UnauthorizedCustomerOperationException
 ```
 
-The exact exception catalog should be defined separately in the Domain Exceptions documentation.
+Additional Value Object or Domain Model exceptions may be used where required.
+
+Exceptions must represent business/domain failures rather than infrastructure implementation details.
 
 ---
 
-# Operation and Audit Considerations
+# 19. Failure Behavior
 
-Customer registration, customer status changes, and other significant customer actions may generate `Operation` and `AuditLog` records when required by the business rules.
+Every service must fail before persistence when a mandatory validation fails.
 
-When an operation must be registered, Customer Services must not directly access the audit database.
+## 19.1 Validation failure
 
-The service must interact with the corresponding Domain Service or Output Port responsible for operation and audit management.
+```text
+Input
+  │
+  ▼
+Validation
+  │
+  └── FAIL → Domain Exception
+```
+
+No mutation is persisted.
+
+---
+
+## 19.2 Authorization failure
+
+```text
+Input
+  │
+  ▼
+Authorization
+  │
+  └── FAIL → UnauthorizedCustomerOperationException
+```
+
+No mutation is persisted.
+
+---
+
+## 19.3 Persistence failure
+
+If persistence fails, the service must not report the business operation as successfully completed.
+
+Operation/Audit consistency must be handled by the application's transaction/consistency strategy.
+
+Customer Services must not hide persistence failures or manufacture successful results.
+
+---
+
+# 20. Input Adapter Boundary
+
+External representations are converted into Domain Models before entering the Customer Service.
+
+```text
+HTTP Request
+     │
+     ▼
+Request DTO
+     │
+     ▼
+Input Adapter / Mapper
+     │
+     ▼
+Customer Domain Model
+     │
+     ▼
+Input Port
+     │
+     ▼
+Customer Service
+```
+
+DTOs are therefore allowed at the infrastructure/application boundary but must not enter the Domain Service contract.
+
+---
+
+# 21. Dependency Direction
+
+The dependency direction must remain:
+
+```text
+                  Domain
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+          ▼                   ▼
+ Customer Services      Output Ports
+                              │
+                              ▼
+                       Output Adapters
+                              │
+                              ▼
+                      External Resources
+```
+
+Customer Services depend on Output Port abstractions.
+
+They must never depend directly on:
+
+```text
+MySQL
+JPA
+Spring Data
+SQL
+Repository Implementations
+REST clients
+```
+
+---
+
+# 22. Transactional Boundary
+
+For mutating Customer Services, the application must guarantee that the business operation is not reported as successful before the required persistence and operation/audit steps satisfy the application's consistency policy.
 
 Conceptually:
 
 ```text
-Customer Service
-      │
-      ▼
-Business Operation
-      │
-      ├── Operation
-      │
-      └── AuditLog
+Validate
+   ↓
+Authorize
+   ↓
+Domain Mutation
+   ↓
+Persist Customer
+   ↓
+Register Operation
+   ↓
+Register Audit
+   ↓
+Commit / Return
 ```
 
-The exact operation and audit flow will be defined in the **Operation and Audit** subdomain documentation.
+The exact transaction mechanism is an infrastructure concern and must not leak into the Domain Model.
 
 ---
 
-# Architectural Constraints
+# 23. Testing Requirements
 
-The following constraints are mandatory for all Customer Services:
+Customer Services must be testable without requiring real infrastructure.
 
-1. Business logic belongs exclusively to the Domain layer.
-2. Services must operate on Domain Models and Value Objects.
-3. Services must never receive REST Request DTOs.
-4. Services must never receive primitive identifiers as substitutes for Domain Model relationships.
-5. Services must never receive isolated attributes that belong to a Domain Model.
-6. Services must never depend directly on databases.
-7. Services must always use Output Ports when external information is required.
-8. Output Ports are interfaces owned by the Domain layer.
-9. Output Adapters implement Output Ports.
-10. Persistence entities must never enter the Domain layer.
-11. Controllers must never contain Customer business rules.
-12. Domain validations must not be delegated to database implementations.
-13. Domain relationships must be represented using Domain Models.
-14. Customer status and User status must remain independent concepts.
-15. The Domain must remain independent of Spring, JPA, MySQL, MongoDB, HTTP, REST, JSON, and SQL.
-16. Input Ports must follow the same Domain Model parameter rule as Domain Services.
-17. External representations must be converted into Domain Models by Input Adapters before entering the Domain.
-18. Customer Services must remain testable without requiring database or infrastructure components.
+## 23.1 Domain tests
 
+Test:
+
+- Customer invariants.
+- Natural customer age rule.
+- Business customer legal representative rules.
+- Customer status transitions.
+- Customer status/User status independence.
+- Value Object constraints.
+
+---
+
+## 23.2 Service tests
+
+Each service must test at least:
+
+### Successful execution
+
+```text
+Valid input
+→ authorized
+→ valid external state
+→ domain behavior
+→ persistence
+→ operation/audit where applicable
+→ expected output
 ```
+
+### Validation failure
+
+Verify that:
+
+- Correct exception is raised.
+- Customer is not persisted.
+- No Operation is registered.
+- No AuditLog is registered.
+
+### Authorization failure
+
+Verify that:
+
+- Correct authorization exception is raised.
+- No customer mutation occurs.
+- No Operation is registered.
+- No AuditLog is registered.
+
+### External information failure
+
+Verify that:
+
+- The correct Output Port is invoked.
+- The service does not access infrastructure directly.
+- The business operation is not reported as successful.
+
+---
+
+# 24. Architectural Constraints
+
+The following constraints are mandatory:
+
+1. Business logic belongs to the Domain layer.
+2. Customer Services operate on Domain Models and Value Objects.
+3. Input Ports use Domain Models and Value Objects.
+4. REST Request DTOs must not enter Customer Services.
+5. Primitive identifiers must not replace Domain Model relationships.
+6. Services must not receive isolated attributes that belong to a Domain Model.
+7. Services must not access databases directly.
+8. External information must be obtained through Output Ports.
+9. Output Ports are abstractions owned by the appropriate inner layer.
+10. Output Adapters implement Output Ports.
+11. Persistence entities must never enter the Domain layer.
+12. Controllers must not contain Customer business rules.
+13. Domain validations must not be delegated to databases.
+14. Domain relationships must remain represented by Domain Models.
+15. CustomerStatus and UserStatus are independent concepts.
+16. `BusinessCustomer.legalRepresentative` is a `NaturalCustomer` domain relationship.
+17. Customer Services must not depend on Spring, JPA, SQL, HTTP, REST, or database implementations.
+18. Significant successful customer mutations must register Operation and Audit according to the business/audit policy.
+19. Failed business actions must not generate successful Operation/Audit records.
+20. Customer Services must remain independently unit-testable.
+21. Authorization must be explicit for every operation that requires permission.
+22. Each service must clearly distinguish domain validation from external validation.
+23. Each service must clearly identify its Output Ports.
+24. Each service must define its successful output and relevant exceptions.
+25. Customer status changes must occur through the dedicated status use case rather than an implicit generic update.
+26. Empty product collections are valid results for customer product consultation.
+27. Infrastructure identifiers may be used internally by adapters but must not become business-layer relationships.
+
+---
+
+# 25. Final Service Catalog
+
+```text
+Customer Management
+│
+├── Register Natural Customer
+│   └── RegisterNaturalCustomerUseCase
+│
+├── Register Business Customer
+│   └── RegisterBusinessCustomerUseCase
+│
+├── Consult Customer
+│   └── ConsultCustomerUseCase
+│
+├── Update Customer
+│   └── UpdateCustomerUseCase
+│
+├── Change Customer Status
+│   └── ChangeCustomerStatusUseCase
+│
+└── Consult Customer Products
+    └── ConsultCustomerProductsUseCase
 ```
+
+---
+
+# 26. Canonical Service Pattern Summary
+
+All mutating Customer Services must follow this pattern:
+
+```text
+1. Validate Input Domain Model
+2. Load Required Persistent State
+3. Validate Existence
+4. Validate Related Entities
+5. Validate Ownership / Relationships
+6. Authorize Actor
+7. Execute Domain Behavior
+8. Persist Domain Model
+9. Register Operation
+10. Register AuditLog
+11. Return Domain Model
+```
+
+Read-only services follow:
+
+```text
+1. Validate Input Domain Model
+2. Load Required Persistent State
+3. Validate Existence
+4. Authorize Actor
+5. Retrieve Domain Models
+6. Register AuditLog only when required
+7. Return Domain Models
+```
+
+The Customer Services implementation must preserve these boundaries and must use the canonical Domain Models, Value Objects, Authorization model, Operation model, Audit model, and Output Port contracts defined by their respective specifications.
