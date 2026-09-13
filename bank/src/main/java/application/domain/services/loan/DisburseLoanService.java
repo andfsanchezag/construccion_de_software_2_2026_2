@@ -1,4 +1,4 @@
-ackage application.domain.services.loan;
+package application.domain.services.loan;
 
 import application.domain.exceptions.CurrencyMismatchException;
 import application.domain.exceptions.DestinationAccountNotActiveException;

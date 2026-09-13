@@ -44,6 +44,14 @@ public final class OperationType extends DomainCatalog {
     public static final OperationType LOAN_CANCELLATION = new OperationType(
             "LOAN_CANCELLATION", "Loan Cancellation", "Cancellation of a loan in an eligible state.");
 
+    // Customer operations
+    public static final OperationType CUSTOMER_REGISTRATION = new OperationType(
+            "CUSTOMER_REGISTRATION", "Customer Registration", "Registration of a new customer.");
+    public static final OperationType CUSTOMER_UPDATE = new OperationType(
+            "CUSTOMER_UPDATE", "Customer Update", "Update of customer information.");
+    public static final OperationType CUSTOMER_STATUS_CHANGE = new OperationType(
+            "CUSTOMER_STATUS_CHANGE", "Customer Status Change", "Change of the customer's banking relationship status.");
+
     private OperationType(String code, String name, String description) {
         super(code, name, description);
     }

@@ -2467,12 +2467,46 @@ CancelLoanUseCase
 The Loan subdomain may require:
 
 ```text
-LoanRepository
-CustomerRepository
-BankAccountRepository
-OperationRepository
-AuditRepository
+LoanRepositoryPort
+CustomerRepositoryPort
+BankAccountRepositoryPort
+OperationRepositoryPort
+AuditLogRepositoryPort
 ```
+
+## Canonical port naming
+
+The names `LoanRepository`, `CustomerRepository`, `BankAccountRepository`,
+`OperationRepository`, and `AuditRepository` used historically in this
+document are aliases of the canonical ports defined in
+`SDD/Domain/Output-ports.md`:
+
+| Name used in this document | Canonical Output Port |
+|---|---|
+| `LoanRepository` | `LoanRepositoryPort` |
+| `CustomerRepository` | `CustomerRepositoryPort` |
+| `BankAccountRepository` | `BankAccountRepositoryPort` |
+| `OperationRepository` | `OperationRepositoryPort` |
+| `AuditRepository` | `AuditLogRepositoryPort` |
+
+New implementations must use the canonical names.
+
+## Service-to-Port Matrix
+
+| Service | LoanRepositoryPort | CustomerRepositoryPort | BankAccountRepositoryPort | OperationRepositoryPort | AuditLogRepositoryPort |
+|---|---:|---:|---:|---:|---:|
+| Request Loan | ✓ (save) | ✓ | ✓ (destination account) | ✓ | ✓ |
+| Consult Loan | ✓ (read) | | | | |
+| Evaluate Loan | ✓ (read when required) | ✓ | ✓ (when applicable) | | |
+| Approve Loan | ✓ (update) | ✓ | ✓ (destination account) | ✓ | ✓ |
+| Reject Loan | ✓ (update) | ✓ (when required) | | ✓ | ✓ |
+| Disburse Loan | ✓ (update) | | ✓ (credit account) | ✓ | ✓ |
+| Cancel Loan | ✓ (update) | | | ✓ | ✓ |
+| Consult Loan Status | ✓ (read) | | | | |
+| Consult Loan Details | ✓ (read) | | | | |
+| Validate Loan Eligibility | ✓ (read when required) | ✓ | ✓ (when applicable) | | |
+
+An empty cell means the service does not require that Output Port. Authorization is composed through the Authorization subdomain services (e.g. `AuthorizeLoanOperationService`, `AuthorizeLoanApprovalService`).
 
 These interfaces belong to the application/domain boundary according to the Hexagonal Architecture adopted by the system.
 

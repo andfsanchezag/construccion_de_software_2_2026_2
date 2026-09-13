@@ -803,26 +803,34 @@ List<AuditLog>
 
 ## Description
 
-`OperationRepository` defines the persistence contract required by the Domain to store and retrieve business operations.
+The canonical Output Port is:
+
+```text
+OperationRepositoryPort
+```
+
+defined in `SDD/Domain/Output-ports.md`, with the contract:
+
+```java
+public interface OperationRepositoryPort {
+
+    Operation save(Operation operation);
+
+    Optional<Operation> findById(Operation operation);
+
+    List<Operation> findByUser(User user);
+
+    List<Operation> findByProduct(BankingProduct product);
+
+    List<Operation> findByType(Operation operation);
+}
+```
 
 It belongs to:
 
 ```text
 domain/ports/out/
 ```
-
-Conceptually:
-
-```java
-interface OperationRepository {
-
-    Operation save(Operation operation);
-
-    List<Operation> find(Operation operation);
-}
-```
-
-The exact methods must be defined according to the use cases required by the system.
 
 The implementation belongs to the persistence adapter.
 
@@ -832,22 +840,24 @@ The implementation belongs to the persistence adapter.
 
 ## Description
 
-`AuditRepository` defines the persistence contract required by the Domain to store and retrieve audit records.
-
-It belongs to:
+The canonical Output Port is:
 
 ```text
-domain/ports/out/
+AuditLogRepositoryPort
 ```
 
-Conceptually:
+defined in `SDD/Domain/Output-ports.md`, with the contract:
 
 ```java
-interface AuditRepository {
+public interface AuditLogRepositoryPort {
 
     AuditLog save(AuditLog auditLog);
 
-    List<AuditLog> find(AuditLog auditLog);
+    List<AuditLog> findByUser(User user);
+
+    List<AuditLog> findByProduct(BankingProduct product);
+
+    List<AuditLog> findByOperationType(AuditLog auditLog);
 }
 ```
 
@@ -864,7 +874,7 @@ The Operation and Audit services may require information about the `User` that p
 When the supplied `User` Domain Model does not contain sufficient information, the service may use:
 
 ```text
-UserRepository
+UserRepositoryPort
 ```
 
 through an Output Port.
@@ -889,19 +899,41 @@ Loan
 Transfer
 ```
 
-If external product information is required, the appropriate repository Output Port must be used.
+If external product information is required, the appropriate canonical repository Output Port must be used.
 
 Conceptually:
 
 ```text
 Operation/Audit Service
           │
-          ├── BankAccountRepository
+          ├── BankAccountRepositoryPort
           │
-          ├── LoanRepository
+          ├── LoanRepositoryPort
           │
-          └── TransferRepository
+          └── TransferRepositoryPort
 ```
+
+---
+
+# Validation Matrix
+
+| Service | Input presence | Operation type validity | User relationship | Product relationship | Existence (Output Port) | Operation registration | Audit registration |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Register Operation | Yes | Yes (valid OperationType) | Yes (performedBy) | Yes (affectedProduct) | N/A | N/A (this is the registration point) | Via Register Operation and Audit |
+| Register Audit Log | Yes | Yes (valid OperationType) | Yes (performedBy) | Yes (affectedProduct) | N/A | No | N/A (this is the registration point) |
+| Register Operation and Audit | Yes | Yes | Yes | Yes | N/A | Yes | Yes |
+| Consult Operations | Yes (requesting actor) | N/A | Yes (query user) | Yes (query product) | N/A | No | No |
+| Consult Audit Logs | Yes (requesting actor) | N/A | Yes (query user) | Yes (query product) | N/A | No | No |
+
+## Service-to-Port Matrix
+
+| Service | OperationRepositoryPort | AuditLogRepositoryPort | UserRepositoryPort | Product Repository Ports |
+|---|---:|---:|---:|---:|
+| Register Operation | ✓ | | When required | |
+| Register Audit Log | | ✓ | When required | |
+| Register Operation and Audit | ✓ (via Register Operation) | ✓ (via Register Audit Log) | | |
+| Consult Operations | ✓ | | When required | When required |
+| Consult Audit Logs | | ✓ | When required | When required |
 
 The service must not access any of these persistence mechanisms directly.
 

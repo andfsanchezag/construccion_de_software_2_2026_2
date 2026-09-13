@@ -977,18 +977,30 @@ CustomerRepository
 
 Provides User information when the supplied `User` Domain Model does not contain sufficient information to evaluate authorization.
 
-Conceptually:
+The canonical Output Port is:
+
+```text
+UserRepositoryPort
+```
+
+defined in `SDD/Domain/Output-ports.md`, with the contract:
 
 ```java
-interface UserRepository {
+public interface UserRepositoryPort {
 
-    User find(User user);
+    User save(User user);
 
-    boolean exists(User user);
+    Optional<User> findByUsername(User user);
+
+    Optional<User> findById(User user);
+
+    boolean existsByUsername(User user);
+
+    void update(User user);
 }
 ```
 
-The exact contract must be defined according to the required use cases.
+Authorization services use the domain-oriented lookup operations (`findById`, `findByUsername`) rather than generic primitive find/exists methods.
 
 ---
 
@@ -997,6 +1009,33 @@ The exact contract must be defined according to the required use cases.
 ## Description
 
 Provides Customer information when authorization requires information not available in the supplied Customer Domain Model.
+
+The canonical Output Port is:
+
+```text
+CustomerRepositoryPort
+```
+
+defined in `SDD/Domain/Output-ports.md`, with the contract:
+
+```java
+public interface CustomerRepositoryPort {
+
+    Customer save(Customer customer);
+
+    Optional<Customer> findByIdentification(Customer customer);
+
+    Optional<Customer> findByEmail(Customer customer);
+
+    boolean existsByIdentification(Customer customer);
+
+    boolean existsByEmail(Customer customer);
+
+    List<Customer> findAll();
+
+    void update(Customer customer);
+}
+```
 
 The repository is accessed only through an Output Port.
 
@@ -1008,7 +1047,13 @@ The repository is accessed only through an Output Port.
 
 Provides Bank Account information when authorization requires external information about an account.
 
-The authorization service must never access account persistence directly.
+The canonical Output Port is:
+
+```text
+BankAccountRepositoryPort
+```
+
+defined in `SDD/Domain/Output-ports.md`. The authorization service must never access account persistence directly.
 
 ---
 
@@ -1020,6 +1065,14 @@ Provides Loan information when authorization requires external information about
 
 For example, authorization may depend on the persisted state of the loan.
 
+The canonical Output Port is:
+
+```text
+LoanRepositoryPort
+```
+
+defined in `SDD/Domain/Output-ports.md`.
+
 ---
 
 # TransferRepository
@@ -1029,6 +1082,14 @@ For example, authorization may depend on the persisted state of the loan.
 Provides Transfer information when authorization requires external information about a transfer.
 
 For example, transfer approval authorization may require the current persisted transfer state.
+
+The canonical Output Port is:
+
+```text
+TransferRepositoryPort
+```
+
+defined in `SDD/Domain/Output-ports.md`.
 
 ---
 
@@ -1301,6 +1362,83 @@ AuditLog
 An authorization failure may also be logged when required by the system's security/audit rules.
 
 If such an event must be recorded, the authorization service must use the appropriate Operation and Audit Output Ports rather than accessing persistence directly.
+
+---
+
+# Validation Strategy
+
+## Standard authorization validation pattern
+
+Every authorization service follows the same validation pattern:
+
+```text
+Input Domain Models
+        |
+        v
+1. Validate input presence (no null Domain Models)
+        |
+        v
+2. Validate User status  (UserStatus, domain data)
+        |
+        v
+3. Validate User role    (SystemRole, domain data)
+        |
+        v
+4. Resolve authoritative external state (Output Port, only when required)
+        |
+        v
+5. Validate relationship / ownership (Domain Models)
+        |
+        v
+6. Decision
+        |
+        +--> OK   -> return (or void)
+        +--> FAIL -> Domain authorization exception
+```
+
+Domain-available information (User.status, User.role, User.customer) is always validated directly; an Output Port is never called merely to re-read information already present in the supplied Domain Models.
+
+## Validation Matrix
+
+| Authorization Service | User provided | User status (ACTIVE) | Role validation | External information (Output Port) | Relationship validation |
+|---|---:|---:|---:|---:|---:|
+| ValidateUserAuthorizationStatus | Yes | Yes | No | No | No |
+| ValidateRoleAuthorization | Yes | No | Yes (required role) | No | No |
+| ValidateInternalAnalystAuthorization | Yes | Yes | INTERNAL_ANALYST | No | No |
+| ValidateBusinessSupervisorAuthorization | Yes | Yes | BUSINESS_SUPERVISOR | When required (transfer state) | When required |
+| ValidateBusinessOperatorAuthorization | Yes | Yes | BUSINESS_OPERATOR | No | Yes (User.customer == BusinessCustomer) |
+| ValidateCustomerOwnership | Yes | No | Employee roles pass | Yes (BankAccountRepositoryPort) | Yes (owner == User.customer) |
+| AuthorizeOperation | Yes | Yes | No | No | No |
+| AuthorizeProductOperation | Yes | Yes | No | No | No |
+| AuthorizeBankAccountOperation | Yes | Yes | Employee/customer split | When required | Yes (ownership) |
+| AuthorizeLoanOperation | Yes | Yes | Employee roles pass | No | Yes (applicant == User.customer) |
+| AuthorizeTransferOperation | Yes | Yes | Employee/customer roles | No | When required |
+| AuthorizeLoanApproval | Yes | Yes | INTERNAL_ANALYST | No | No |
+| AuthorizeTransferApproval | Yes | Yes | BUSINESS_SUPERVISOR | Yes (UserRepositoryPort) | Yes (segregation of duties) |
+| AuthorizeCustomerOperation | Yes | Yes | Employee roles pass | No | Yes (customer access) |
+| AuthorizeBusinessCustomerOperation | Yes | Yes | BUSINESS_OPERATOR | No | Yes |
+
+## Service-to-Port Matrix
+
+| Authorization Service | UserRepositoryPort | CustomerRepositoryPort | BankAccountRepositoryPort | LoanRepositoryPort | TransferRepositoryPort |
+|---|---:|---:|---:|---:|---:|
+| ValidateUserAuthorizationStatus | | | | | |
+| ValidateRoleAuthorization | | | | | |
+| ValidateInternalAnalystAuthorization | | | | | |
+| ValidateBusinessSupervisorAuthorization | | | | | When required |
+| ValidateBusinessOperatorAuthorization | | | | | |
+| ValidateCustomerOwnership | | | ✓ | | |
+| AuthorizeOperation | | | | | |
+| AuthorizeProductOperation | | | | | |
+| AuthorizeBankAccountOperation | | | (via ownership service) | | |
+| AuthorizeLoanOperation | | | | | |
+| AuthorizeTransferOperation | | | | | |
+| AuthorizeLoanApproval | | | | | |
+| AuthorizeTransferApproval | ✓ | | | | |
+| AuthorizeCustomerOperation | | | | | |
+| AuthorizeBusinessCustomerOperation | | | | | |
+
+An empty cell means the authorization decision is resolved exclusively from the supplied Domain Models (domain data), per the Validation Strategy rule.
 
 ---
 

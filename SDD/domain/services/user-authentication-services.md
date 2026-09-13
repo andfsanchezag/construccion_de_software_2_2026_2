@@ -1076,14 +1076,28 @@ The service may use additional Output Ports when the business operation requires
 
 All User Authentication Services communicate with external resources exclusively through Output Ports.
 
-The relevant ports are:
+The relevant canonical ports are:
 
 ```text
-UserRepository
-CustomerRepository
-PasswordSecurityPort
-JwtTokenPort
+UserRepositoryPort
+CustomerRepositoryPort
+PasswordServicePort
+JwtServicePort
 ```
+
+## Canonical port naming
+
+The following names used historically in this document are aliases of the
+canonical ports defined in `SDD/Domain/Output-ports.md`:
+
+| Name used in this document | Canonical Output Port |
+|---|---|
+| `UserRepository` | `UserRepositoryPort` |
+| `CustomerRepository` | `CustomerRepositoryPort` |
+| `PasswordSecurityPort` | `PasswordServicePort` |
+| `JwtTokenPort` | `JwtServicePort` |
+
+New implementations must use the canonical names.
 
 ---
 
@@ -1115,22 +1129,24 @@ Check User Existence
 
 The port operates with Domain Models.
 
-Conceptually:
+The canonical contract is:
 
 ```java
-interface UserRepository {
+public interface UserRepositoryPort {
 
     User save(User user);
 
-    User find(User user);
+    Optional<User> findByUsername(User user);
 
-    boolean exists(User user);
+    Optional<User> findById(User user);
+
+    boolean existsByUsername(User user);
+
+    void update(User user);
 }
 ```
 
-The exact interface can be refined in the dedicated Output Port documentation.
-
-The persistence implementation may use the username to query the database, but this remains an implementation detail.
+defined in `SDD/Domain/Output-ports.md`. The persistence implementation may use the username to query the database, but this remains an implementation detail.
 
 ---
 
@@ -1158,6 +1174,12 @@ The persistence adapter is responsible for translating the Domain relationship i
 
 Defines the contract required by the Domain to perform password security operations.
 
+The canonical Output Port is:
+
+```text
+PasswordServicePort
+```
+
 Conceptual responsibilities include:
 
 ```text
@@ -1168,7 +1190,7 @@ Validate Password
 For example:
 
 ```java
-interface PasswordSecurityPort {
+interface PasswordServicePort {
 
     User secure(User user);
 
@@ -1195,12 +1217,18 @@ These technologies must not enter the Domain.
 
 Defines the contract required by the Domain to generate the authentication JWT.
 
+The canonical Output Port is:
+
+```text
+JwtServicePort
+```
+
 Conceptually:
 
 ```java
-interface JwtTokenPort {
+interface JwtServicePort {
 
-    AuthenticationToken generate(User user);
+    String generateToken(User user);
 }
 ```
 
@@ -1214,6 +1242,58 @@ The implementation is responsible for:
 * Managing cryptographic configuration.
 
 The Domain does not depend on the JWT implementation.
+
+---
+
+# Validation Matrix
+
+| Service | Input presence | User status | Role validation | Existence (Output Port) | Uniqueness (Output Port) | External processing | Authorization |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Register Customer User | Yes | Yes | Yes (customer-compatible role) | Yes (CustomerRepositoryPort) | Yes (UserRepositoryPort) | PasswordServicePort | Not required unless policy says otherwise |
+| Register Employee User | Yes | Yes (registering user) | Yes (INTERNAL_ANALYST + employee role) | Yes (UserRepositoryPort, registering user) | Yes (UserRepositoryPort) | PasswordServicePort | Yes (INTERNAL_ANALYST) |
+| Login | Yes | Yes (stored user) | No | Yes (UserRepositoryPort) | N/A | PasswordServicePort + JwtServicePort | N/A (authentication) |
+| Change User Password | Yes | Yes | No | Yes (UserRepositoryPort) | N/A | PasswordServicePort | Yes (self or authorized actor) |
+| Change User Status | Yes | Yes (requesting actor) | Yes (per status-change policy) | Yes (UserRepositoryPort) | N/A | N/A | Yes |
+| Consult User | Yes | Yes (requesting actor when applicable) | N/A | Yes (UserRepositoryPort) | N/A | N/A | Read access rules when applicable |
+
+## Service-to-Port Matrix
+
+| Service | UserRepositoryPort | CustomerRepositoryPort | PasswordServicePort | JwtServicePort |
+|---|---:|---:|---:|---:|
+| Register Customer User | ✓ (username uniqueness + save) | ✓ | ✓ | |
+| Register Employee User | ✓ | | ✓ | |
+| Login | ✓ | | ✓ | ✓ |
+| Change User Password | ✓ | | ✓ | |
+| Change User Status | ✓ | | | |
+| Consult User | ✓ | | | |
+
+---
+
+# Enrichment Pattern
+
+When the supplied `User` Domain Model does not contain authoritative state
+(the persisted password, the persisted status, or the persisted customer
+association), the service resolves the authoritative `User` through
+`UserRepositoryPort` before validating business rules:
+
+```text
+Input User
+     |
+     v
+UserRepositoryPort
+     |
+     v
+Authoritative User
+     |
+     v
+Validate domain rules (status / role / association)
+     |
+     v
+External processing (PasswordServicePort / JwtServicePort)
+     |
+     v
+Persist / Return
+```
 
 ---
 

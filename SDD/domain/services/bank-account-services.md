@@ -708,8 +708,62 @@ The Bank Account subdomain may use the following Output Ports:
 BankAccountRepositoryPort
 CustomerRepositoryPort
 OperationRepositoryPort
-AuditRepositoryPort
+AuditLogRepositoryPort
 ```
+
+## Canonical port naming
+
+The name `AuditRepositoryPort` used historically in this document is an
+alias of the canonical port defined in `SDD/Domain/Output-ports.md`:
+
+| Name used in this document | Canonical Output Port |
+|---|---|
+| `AuditRepositoryPort` | `AuditLogRepositoryPort` |
+
+New implementations must use the canonical names.
+
+## Entity Enrichment rule
+
+For state-changing and consult operations the service must resolve the
+authoritative persisted state through the Output Ports before applying
+business validations:
+
+```text
+Input Domain Models
+        |
+        v
+BankAccountRepositoryPort.findByIdentifier(...)
+        |
+        v
+Authoritative BankAccount
+        |
+        v
+CustomerRepositoryPort.findByIdentification(...)
+        |
+        v
+Authoritative Customer
+        |
+        v
+Business validation on authoritative state
+```
+
+The caller-supplied Domain Models carry business context, but never
+replace the authoritative persisted state (BR-008, anti-pattern 44.3).
+
+## Service-to-Port Matrix
+
+| Service | BankAccountRepositoryPort | CustomerRepositoryPort | OperationRepositoryPort | AuditLogRepositoryPort |
+|---|---:|---:|---:|---:|
+| Open Bank Account | ✓ (save) | ✓ | ✓ | ✓ |
+| Consult Bank Account | ✓ (read) | ✓ (when required) | | |
+| Consult Account Balance | ✓ (read) | ✓ (when required) | | |
+| Deposit Funds | ✓ (update) | ✓ | ✓ | ✓ |
+| Withdraw Funds | ✓ (update) | ✓ | ✓ | ✓ |
+| Block Bank Account | ✓ (update) | ✓ (when required) | ✓ | ✓ |
+| Unblock Bank Account | ✓ (update) | ✓ (when required) | ✓ | ✓ |
+| Close Bank Account | ✓ (update) | ✓ | ✓ | ✓ |
+
+An empty cell means the service does not require that Output Port. Authorization and ownership validations are composed through the Authorization subdomain services.
 
 These interfaces belong to the application/domain boundary.
 

@@ -1,4 +1,4 @@
-ackage application.domain.services.loan;
+package application.domain.services.loan;
 
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.exceptions.UnauthorizedOperationException;
