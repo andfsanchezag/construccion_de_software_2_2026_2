@@ -49,48 +49,71 @@ Each component has a clearly defined responsibility.
 ```text
 src/
 └── main/
-    └── java/
+    └── java/ (or ts/)
         └── application/
             │
             ├── App.java
             │
             ├── adapters/
             │   │
-            │   ├── in/
-            │   │   └── rest/
-            │   │       ├── controllers/
-            │   │       ├── requests/
-            │   │       ├── responses/
-            │   │       └── mappers/
+            │   ├── rest/                          <-- REST Delivery Layer
+            │   │   ├── controllers/               <-- REST Controllers by Role/Feature
+            │   │   ├── dtos/
+            │   │   │   ├── requests/              <-- Request DTOs
+            │   │   │   └── responses/             <-- Response DTOs
+            │   │   └── mappers/                   <-- DTO <-> Domain Mappers
             │   │
-            │   └── out/
-            │       └── persistence/
-            │           ├── mysql/
-            │           │   ├── adapters/
-            │           │   ├── entities/
-            │           │   ├── repositories/
-            │           │   └── mappers/
-            │           │
-            │           └── mongodb/
-            │               ├── adapters/
-            │               ├── documents/
-            │               ├── repositories/
-            │               └── mappers/
+            │   ├── useCases/                      <-- Use Cases Implementation Layer
+            │   │   ├── PublicAccessUseCaseImpl.java
+            │   │   ├── NaturalCustomerUseCaseImpl.java
+            │   │   ├── BusinessCustomerUseCaseImpl.java
+            │   │   ├── BusinessOperatorUseCaseImpl.java
+            │   │   ├── BusinessSupervisorUseCaseImpl.java
+            │   │   ├── TellerEmployeeUseCaseImpl.java
+            │   │   ├── CommercialEmployeeUseCaseImpl.java
+            │   │   └── InternalAnalystUseCaseImpl.java
+            │   │
+            │   └── persistence/                   <-- Output Persistence Layer
+            │       ├── jpa/ (or typeorm/)         <-- Relational Persistence (SQL)
+            │       │   ├── entities/              <-- Repository Entities / DTOs
+            │       │   ├── mappers/               <-- Entity <-> Domain Mappers
+            │       │   ├── repositories/          <-- Spring Data JPA / TypeORM Repositories
+            │       │   └── BankAccountJpaAdapter.java <-- Implements Output Port
+            │       │
+            │       └── mongodb/ (or mongoose/)    <-- NoSQL Persistence (Audit)
+            │           ├── documents/             <-- Repository Documents / DTOs
+            │           ├── mappers/               <-- Document <-> Domain Mappers
+            │           ├── repositories/          <-- Spring Data Mongo / Mongoose Repositories
+            │           └── AuditLogMongoAdapter.java <-- Implements Output Port
             │
             ├── domain/
-            │   ├── models/
-            │   ├── valueobjects/
-            │   ├── enums/
-            │   ├── services/
-            │   ├── exceptions/
+            │   ├── models/                        <-- Pure Domain Entities
+            │   ├── valueobjects/                  <-- Domain Value Objects
+            │   ├── enums/                         <-- Domain Enumerations
+            │   ├── services/                      <-- Domain Services (Pure Business Logic)
+            │   ├── exceptions/                    <-- Domain Exceptions
             │   └── ports/
-            │       ├── in/
-            │       └── out/
+            │       ├── in/                        <-- Role Input Ports (Interfaces)
+            │       │   ├── PublicAccessPort.java
+            │       │   ├── NaturalCustomerPort.java
+            │       │   ├── BusinessCustomerPort.java
+            │       │   ├── BusinessOperatorPort.java
+            │       │   ├── BusinessSupervisorPort.java
+            │       │   ├── TellerEmployeePort.java
+            │       │   ├── CommercialEmployeePort.java
+            │       │   └── InternalAnalystPort.java
+            │       └── out/                       <-- Output Ports (Interfaces)
+            │           ├── CustomerRepositoryPort.java
+            │           ├── UserRepositoryPort.java
+            │           ├── BankAccountRepositoryPort.java
+            │           ├── LoanRepositoryPort.java
+            │           ├── TransferRepositoryPort.java
+            │           └── AuditRepositoryPort.java
             │
             └── infrastructure/
                 ├── config/
                 ├── database/
-                └── security/
+                └── security/                      <-- JWT Provider & Security Filters
 ```
 
 ---
@@ -136,143 +159,60 @@ The domain never communicates directly with external systems.
 
 ---
 
-## Input Adapters
+## REST Adapters (`adapters/rest/`)
 
-Input adapters expose the application to external clients.
-
-Current implementation:
-
-```
-adapters/in/rest
-```
+Expose HTTP REST endpoints to external clients and handle transport concerns.
 
 ### Responsibilities
-
-- Receive HTTP requests.
-- Validate incoming data.
-- Convert Request DTOs into Domain Models.
-- Execute application use cases.
-- Convert domain results into Response DTOs.
-
----
-
-### Controllers
-
-Controllers expose REST endpoints.
-
-Responsibilities:
-
-- Receive HTTP requests.
-- Delegate execution to the domain.
-- Return HTTP responses.
-
-Controllers must never implement business rules.
+- Receive HTTP requests and authenticate JWT tokens.
+- Extract claims from JWT and reconstruct the `User` Domain Model.
+- Evaluate the user's `SystemRole` against the requested Role Input Port.
+- Convert `RequestDTO` into Domain Models using REST Mappers.
+- Invoke the corresponding Role Input Port interface passing the reconstructed `User` domain model.
+- Convert returned Domain Models into `ResponseDTO` for HTTP responses.
 
 ---
 
-### Requests
+## Use Cases Adapters (`adapters/useCases/`)
 
-Request DTOs represent incoming HTTP payloads.
+Implement the **Role Input Ports** defined in `domain/ports/in/`.
 
-Responsibilities:
-
-- Receive client data.
-- Validate input.
-- Transport data into the application.
-
-These objects must not contain business logic.
+### Responsibilities
+- Provide concrete implementation for each Role Input Port (`PublicAccessUseCaseImpl`, `NaturalCustomerUseCaseImpl`, `InternalAnalystUseCaseImpl`, etc.).
+- **Inject the concrete Domain Services** (`domain/services/*Service`) where business logic resides.
+- Delegate use case execution to the injected Domain Services.
 
 ---
 
-### Responses
+## Persistence Output Adapters (`adapters/persistence/`)
 
-Response DTOs represent outgoing HTTP responses.
+Connect Domain Output Ports (`domain/ports/out/`) with databases (relational SQL and NoSQL MongoDB).
 
-Responsibilities:
+Persistence terminology and ORM technologies are adapted according to the project language stack:
 
-- Return processed information.
-- Hide internal domain implementation.
-- Standardize API responses.
+### Java Stack (Spring Data)
+- **Relational Persistence (JPA / SQL):**
+  - **Entities (`@Entity`):** Relational database mapping DTOs.
+  - **Repositories:** Extend Spring Data `JpaRepository`.
+  - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `JPA Entity`).
+  - **Adapters:** Implement Output Ports (e.g. `BankAccountJpaAdapter`).
+- **NoSQL Persistence (MongoDB Audit):**
+  - **Documents (`@Document`):** MongoDB collection mapping DTOs.
+  - **Repositories:** Extend Spring Data `MongoRepository`.
+  - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `Mongo Document`).
+  - **Adapters:** Implement Output Ports (e.g. `AuditLogMongoAdapter`).
 
----
-
-### Mappers
-
-Responsible for converting between:
-
-- Request DTO ↔ Domain Model
-- Domain Model ↔ Response DTO
-
-This prevents the domain from depending on transport objects.
-
----
-
-# Output Adapters
-
-Output adapters connect the domain with external resources.
-
-Examples:
-
-- Databases
-- Notification services
-- External APIs
-- Messaging systems
-
-Current implementation:
-
-```
-Persistence
-├── MySQL
-└── MongoDB
-```
-
----
-
-## MySQL Adapter
-
-Responsible for relational persistence.
-
-### Components
-
-#### Entities
-
-Represent relational database tables.
-
-#### Repositories
-
-Implement persistence operations.
-
-#### Mappers
-
-Convert Domain Models into database entities.
-
-#### Adapters
-
-Implement Domain Output Ports.
-
----
-
-## MongoDB Adapter
-
-Responsible for storing audit information.
-
-### Components
-
-#### Documents
-
-Represent MongoDB collections.
-
-#### Repositories
-
-Provide document persistence.
-
-#### Mappers
-
-Convert domain objects into MongoDB documents.
-
-#### Adapters
-
-Implement audit persistence ports.
+### TypeScript Stack (TypeORM / Prisma / Mongoose)
+- **Relational Persistence (SQL - TypeORM / Prisma):**
+  - **Entities (`@Entity()` / Prisma Model):** Relational mapping DTOs.
+  - **Repositories:** TypeORM Repositories / Custom Data Adapters.
+  - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `TypeORM Entity`).
+  - **Adapters:** Implement Output Ports (e.g. `BankAccountTypeOrmAdapter`).
+- **NoSQL Persistence (MongoDB - Mongoose):**
+  - **Schemas / Documents:** Mongoose Schema definitions.
+  - **Repositories:** Mongoose Models.
+  - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `Mongoose Document`).
+  - **Adapters:** Implement Output Ports (e.g. `AuditLogMongoAdapter`).
 
 ---
 
