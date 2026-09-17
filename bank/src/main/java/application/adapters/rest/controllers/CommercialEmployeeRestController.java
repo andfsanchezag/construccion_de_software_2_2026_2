@@ -10,10 +10,12 @@ import application.adapters.rest.mappers.CustomerProductsRestMapper;
 import application.adapters.rest.mappers.LoanRestMapper;
 import application.adapters.rest.mappers.BankAccountRestMapper;
 import application.domain.models.Customer;
+import application.domain.models.NaturalCustomer;
 import application.domain.models.Loan;
 import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.ports.in.CommercialEmployeePort;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +36,7 @@ public class CommercialEmployeeRestController {
             @AuthenticationPrincipal User authenticatedUser,
             @PathVariable String identification) {
         
-        Customer customer = new Customer();
+        Customer customer = new NaturalCustomer();
         customer.setIdentification(identification);
         Customer found = commercialEmployeePort.consultCustomer(authenticatedUser, customer);
         return ResponseEntity.ok(CustomerRestMapper.toResponseDTO(found));
@@ -46,7 +48,7 @@ public class CommercialEmployeeRestController {
             @PathVariable String identification,
             @RequestBody CustomerUpdateRequestDTO requestDTO) {
         
-        Customer customer = new Customer();
+        Customer customer = new NaturalCustomer();
         customer.setIdentification(identification);
         customer.setEmail(requestDTO.getEmail());
         customer.setPhoneNumber(requestDTO.getPhoneNumber());
@@ -61,7 +63,7 @@ public class CommercialEmployeeRestController {
             @AuthenticationPrincipal User authenticatedUser,
             @PathVariable String identification) {
         
-        Customer customer = new Customer();
+        Customer customer = new NaturalCustomer();
         customer.setIdentification(identification);
         application.domain.models.CustomerProducts products = commercialEmployeePort.consultCustomerProducts(authenticatedUser, customer);
         return ResponseEntity.ok(CustomerProductsRestMapper.toResponseDTO(products));
@@ -72,7 +74,7 @@ public class CommercialEmployeeRestController {
             @AuthenticationPrincipal User authenticatedUser,
             @Valid @RequestBody CommercialRequestLoanRequestDTO requestDTO) {
         
-        Customer customer = new Customer();
+        Customer customer = new NaturalCustomer();
         customer.setIdentification(requestDTO.getCustomerIdentification());
         
         Loan loan = LoanRestMapper.toDomain(requestDTO);
@@ -96,9 +98,60 @@ public class CommercialEmployeeRestController {
             @AuthenticationPrincipal User authenticatedUser,
             @RequestBody BankAccountRequestDTO requestDTO) {
         
-        BankAccount account = BankAccountRestMapper.toDomain(requestDTO);
+        BankAccount account = toDomain(requestDTO);
         BankAccount opened = commercialEmployeePort.openBankAccount(authenticatedUser, account);
         return ResponseEntity.ok(BankAccountRestMapper.toResponseDTO(opened));
+    }
+
+    private BankAccount toDomain(BankAccountRequestDTO dto) {
+        BankAccount account = new BankAccount();
+        if (dto.getAccountType() != null) {
+            account.setAccountType(mapAccountType(dto.getAccountType()));
+        }
+        if (dto.getCurrency() != null) {
+            account.setCurrency(mapCurrency(dto.getCurrency()));
+        }
+        if (dto.getInitialBalance() != null) {
+            account.setCurrentBalance(dto.getInitialBalance());
+        }
+        if (dto.getOwnerIdentification() != null) {
+            NaturalCustomer owner = new NaturalCustomer();
+            owner.setIdentification(dto.getOwnerIdentification());
+            account.setOwner(owner);
+        }
+        return account;
+    }
+
+    private application.domain.valueobjects.AccountType mapAccountType(String code) {
+        if (code == null) {
+            return null;
+        }
+        switch (code) {
+            case "SAVINGS":
+                return application.domain.valueobjects.AccountType.SAVINGS;
+            case "CHECKING":
+                return application.domain.valueobjects.AccountType.CHECKING;
+            case "BUSINESS":
+                return application.domain.valueobjects.AccountType.BUSINESS;
+            default:
+                return null;
+        }
+    }
+
+    private application.domain.valueobjects.Currency mapCurrency(String code) {
+        if (code == null) {
+            return null;
+        }
+        switch (code) {
+            case "COP":
+                return application.domain.valueobjects.Currency.COP;
+            case "USD":
+                return application.domain.valueobjects.Currency.USD;
+            case "EUR":
+                return application.domain.valueobjects.Currency.EUR;
+            default:
+                return null;
+        }
     }
 
     // Inner DTOs

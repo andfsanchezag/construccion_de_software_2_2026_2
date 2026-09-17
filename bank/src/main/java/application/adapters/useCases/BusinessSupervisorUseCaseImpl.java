@@ -4,6 +4,7 @@ import application.domain.models.Operation;
 import application.domain.models.Transfer;
 import application.domain.models.User;
 import application.domain.ports.in.BusinessSupervisorPort;
+import application.domain.ports.out.TransferRepositoryPort;
 import application.domain.services.transfer.ApproveTransferService;
 import application.domain.services.transfer.ConsultTransferService;
 import application.domain.services.transfer.RejectTransferService;
@@ -21,10 +22,11 @@ public class BusinessSupervisorUseCaseImpl implements BusinessSupervisorPort {
     private final ApproveTransferService approveTransferService;
     private final RejectTransferService rejectTransferService;
     private final ConsultOperationsService consultOperationsService;
+    private final TransferRepositoryPort transferRepositoryPort;
 
     @Override
     public List<Transfer> consultPendingTransfers(User user) {
-        return consultTransferService.findByStatusWaitingForApproval(user.getCustomer());
+        return transferRepositoryPort.findPendingApproval();
     }
 
     @Override
@@ -39,6 +41,6 @@ public class BusinessSupervisorUseCaseImpl implements BusinessSupervisorPort {
 
     @Override
     public List<Operation> consultCompanyOperations(User user) {
-        return consultOperationsService.findByCustomer(user.getCustomer());
+        return consultOperationsService.executeByUser(user, user);
     }
 }

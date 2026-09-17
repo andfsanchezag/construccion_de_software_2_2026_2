@@ -19,6 +19,7 @@ import application.domain.models.User;
 import application.domain.ports.in.InternalAnalystPort;
 import application.domain.valueobjects.CustomerStatus;
 import application.domain.valueobjects.UserStatus;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,18 +52,16 @@ public class InternalAnalystRestController {
         newEmployee.setEmail(requestDTO.getEmail());
         
         if (requestDTO.getRole() != null) {
-            newEmployee.setRole(application.domain.valueobjects.SystemRole.fromCode(requestDTO.getRole()));
+            newEmployee.setRole(mapSystemRole(requestDTO.getRole()));
         }
         
-        application.domain.models.Person person = new application.domain.models.Person();
-        person.setIdentification(requestDTO.getIdentification());
-        person.setName(requestDTO.getName());
-        newEmployee.setPerson(person);
+        newEmployee.setIdentification(requestDTO.getIdentification());
+        newEmployee.setName(requestDTO.getName());
         
         User created = internalAnalystPort.registerEmployeeUser(authenticatedUser, newEmployee);
         
         UserResponseDTO response = new UserResponseDTO();
-        response.setUserId(created.getUserId());
+        response.setUserId(created.getUserId() != null ? String.valueOf(created.getUserId()) : null);
         response.setUsername(created.getUsername());
         response.setRole(created.getRole() != null ? created.getRole().getCode() : null);
         response.setStatus(created.getStatus() != null ? created.getStatus().getCode() : null);
@@ -76,10 +75,10 @@ public class InternalAnalystRestController {
             @PathVariable String identification,
             @Valid @RequestBody ChangeCustomerStatusRequestDTO requestDTO) {
         
-        Customer customer = new Customer();
+        Customer customer = new application.domain.models.NaturalCustomer();
         customer.setIdentification(identification);
         
-        CustomerStatus newStatus = CustomerStatus.fromCode(requestDTO.getStatus());
+        CustomerStatus newStatus = mapCustomerStatus(requestDTO.getStatus());
         Customer updated = internalAnalystPort.changeCustomerStatus(authenticatedUser, customer, newStatus);
         return ResponseEntity.ok(CustomerRestMapper.toResponseDTO(updated));
     }
@@ -178,5 +177,45 @@ public class InternalAnalystRestController {
         return ResponseEntity.ok(operations.stream()
                 .map(application.adapters.rest.mappers.OperationRestMapper::toResponseDTO)
                 .collect(Collectors.toList()));
+    }
+
+    private application.domain.valueobjects.SystemRole mapSystemRole(String code) {
+        if (code == null) {
+            return null;
+        }
+        switch (code) {
+            case "NATURAL_CUSTOMER":
+                return application.domain.valueobjects.SystemRole.NATURAL_CUSTOMER;
+            case "BUSINESS_CUSTOMER":
+                return application.domain.valueobjects.SystemRole.BUSINESS_CUSTOMER;
+            case "TELLER_EMPLOYEE":
+                return application.domain.valueobjects.SystemRole.TELLER_EMPLOYEE;
+            case "COMMERCIAL_EMPLOYEE":
+                return application.domain.valueobjects.SystemRole.COMMERCIAL_EMPLOYEE;
+            case "BUSINESS_OPERATOR":
+                return application.domain.valueobjects.SystemRole.BUSINESS_OPERATOR;
+            case "BUSINESS_SUPERVISOR":
+                return application.domain.valueobjects.SystemRole.BUSINESS_SUPERVISOR;
+            case "INTERNAL_ANALYST":
+                return application.domain.valueobjects.SystemRole.INTERNAL_ANALYST;
+            default:
+                return null;
+        }
+    }
+
+    private CustomerStatus mapCustomerStatus(String code) {
+        if (code == null) {
+            return null;
+        }
+        switch (code) {
+            case "ACTIVE":
+                return CustomerStatus.ACTIVE;
+            case "INACTIVE":
+                return CustomerStatus.INACTIVE;
+            case "BLOCKED":
+                return CustomerStatus.BLOCKED;
+            default:
+                return null;
+        }
     }
 }

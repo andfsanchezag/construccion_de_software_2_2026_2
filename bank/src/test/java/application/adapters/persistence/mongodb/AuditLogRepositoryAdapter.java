@@ -3,22 +3,19 @@ package application.adapters.persistence.mongodb;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.stereotype.Service;
-
 import application.domain.models.AuditLog;
 import application.domain.models.BankingProduct;
 import application.domain.models.User;
 import application.domain.ports.out.AuditLogRepositoryPort;
 
 /**
- * In-memory persistence adapter for AuditLog.
+ * In-memory test double of {@link AuditLogRepositoryPort}.
  *
- * It stays inside the adapter layer and implements the AuditLogRepositoryPort,
- * so the domain never depends on MongoDB. This is the MongoDB output adapter
- * placeholder; keep the domain contract unchanged when replacing the store.
+ * <p>It lives in the test sources so the unit tests of the domain services can run
+ * without MongoDB. Production persistence is provided by the MongoDB adapter under
+ * {@code application.adapters.persistence.mongodb}.
  */
-@Service
-public class AuditLogRepositoryAdapter implements AuditLogRepositoryPort {
+public final class AuditLogRepositoryAdapter implements AuditLogRepositoryPort {
 
     private final List<AuditLog> store = new ArrayList<>();
 

@@ -52,12 +52,12 @@ public class TellerEmployeeUseCaseImpl implements TellerEmployeePort {
 
     @Override
     public BankAccount depositFunds(User user, BankAccount account, application.domain.valueobjects.Money amount) {
-        return depositFundsService.deposit(user, account, amount);
+        return depositFundsService.deposit(user, user.getCustomer(), account, amount);
     }
 
     @Override
     public BankAccount withdrawFunds(User user, BankAccount account, application.domain.valueobjects.Money amount) {
-        return withdrawFundsService.withdraw(user, account, amount);
+        return withdrawFundsService.withdraw(user, user.getCustomer(), account, amount);
     }
 
     @Override

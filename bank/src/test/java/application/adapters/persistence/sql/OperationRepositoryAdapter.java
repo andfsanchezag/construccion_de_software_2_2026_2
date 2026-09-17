@@ -6,21 +6,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.stereotype.Service;
-
 import application.domain.models.BankingProduct;
 import application.domain.models.Operation;
 import application.domain.models.User;
 import application.domain.ports.out.OperationRepositoryPort;
 
 /**
- * In-memory persistence adapter for Operation.
+ * In-memory test double of {@link OperationRepositoryPort}.
  *
- * It stays inside the adapter layer and implements the OperationRepositoryPort,
- * so the domain never depends on a concrete store.
+ * <p>It lives in the test sources so the unit tests of the domain services can run
+ * without MySQL. Production persistence is provided by the JPA adapters under
+ * {@code application.adapters.persistence.jpa}.
  */
-@Service
-public class OperationRepositoryAdapter implements OperationRepositoryPort {
+public final class OperationRepositoryAdapter implements OperationRepositoryPort {
 
     private final Map<Integer, Operation> store = new HashMap<>();
     private final AtomicInteger sequence = new AtomicInteger(0);

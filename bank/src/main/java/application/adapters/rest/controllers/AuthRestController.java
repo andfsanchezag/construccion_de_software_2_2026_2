@@ -67,7 +67,7 @@ public class AuthRestController {
         user.setPassword(requestDTO.getPassword());
         
         if (requestDTO.getRole() != null) {
-            user.setRole(application.domain.valueobjects.SystemRole.fromCode(requestDTO.getRole()));
+            user.setRole(mapSystemRole(requestDTO.getRole()));
         }
         
         // The customer identification needs to be set on the user
@@ -78,11 +78,35 @@ public class AuthRestController {
         User saved = publicAccessPort.registerCustomerUser(user);
         
         UserResponseDTO response = new UserResponseDTO();
-        response.setUserId(saved.getUserId());
+        response.setUserId(saved.getUserId() != null ? String.valueOf(saved.getUserId()) : null);
         response.setUsername(saved.getUsername());
         response.setRole(saved.getRole() != null ? saved.getRole().getCode() : null);
         response.setStatus(saved.getStatus() != null ? saved.getStatus().getCode() : null);
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    private application.domain.valueobjects.SystemRole mapSystemRole(String code) {
+        if (code == null) {
+            return null;
+        }
+        switch (code) {
+            case "NATURAL_CUSTOMER":
+                return application.domain.valueobjects.SystemRole.NATURAL_CUSTOMER;
+            case "BUSINESS_CUSTOMER":
+                return application.domain.valueobjects.SystemRole.BUSINESS_CUSTOMER;
+            case "TELLER_EMPLOYEE":
+                return application.domain.valueobjects.SystemRole.TELLER_EMPLOYEE;
+            case "COMMERCIAL_EMPLOYEE":
+                return application.domain.valueobjects.SystemRole.COMMERCIAL_EMPLOYEE;
+            case "BUSINESS_OPERATOR":
+                return application.domain.valueobjects.SystemRole.BUSINESS_OPERATOR;
+            case "BUSINESS_SUPERVISOR":
+                return application.domain.valueobjects.SystemRole.BUSINESS_SUPERVISOR;
+            case "INTERNAL_ANALYST":
+                return application.domain.valueobjects.SystemRole.INTERNAL_ANALYST;
+            default:
+                return null;
+        }
     }
 }

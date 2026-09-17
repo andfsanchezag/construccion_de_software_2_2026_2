@@ -21,7 +21,7 @@ public class PublicAccessUseCaseImpl implements PublicAccessPort {
     private final RegisterCustomerUserService registerCustomerUserService;
 
     @Override
-    public User login(User user) {
+    public String login(User user) {
         return loginService.login(user);
     }
 

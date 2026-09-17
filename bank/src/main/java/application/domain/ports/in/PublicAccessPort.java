@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface PublicAccessPort {
 
-    User login(User user);
+    String login(User user);
 
     void logout(User user);
 

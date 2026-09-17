@@ -12,6 +12,7 @@ import application.domain.models.BankAccount;
 import application.domain.models.Operation;
 import application.domain.models.User;
 import application.domain.ports.in.BusinessOperatorPort;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

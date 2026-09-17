@@ -99,7 +99,6 @@ public class NaturalCustomerUseCaseImpl implements NaturalCustomerPort {
 
     @Override
     public List<Operation> consultMyOperations(User user) {
-        Customer customer = user.getCustomer();
-        return consultOperationsService.findByCustomer(customer);
+        return consultOperationsService.executeByUser(user, user);
     }
 }

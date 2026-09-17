@@ -17,6 +17,7 @@ import application.domain.models.Loan;
 import application.domain.models.Transfer;
 import application.domain.models.User;
 import application.domain.ports.in.BusinessCustomerPort;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -57,18 +58,16 @@ public class BusinessCustomerRestController {
         newUser.setEmail(requestDTO.getEmail());
         
         if (requestDTO.getRole() != null) {
-            newUser.setRole(application.domain.valueobjects.SystemRole.fromCode(requestDTO.getRole()));
+            newUser.setRole(mapSystemRole(requestDTO.getRole()));
         }
         
-        application.domain.models.Person person = new application.domain.models.Person();
-        person.setIdentification(requestDTO.getIdentification());
-        person.setName(requestDTO.getName());
-        newUser.setPerson(person);
+        newUser.setIdentification(requestDTO.getIdentification());
+        newUser.setName(requestDTO.getName());
         
         User created = businessCustomerPort.registerCompanyUser(authenticatedUser, newUser);
         
         application.adapters.rest.dtos.responses.UserResponseDTO response = new application.adapters.rest.dtos.responses.UserResponseDTO();
-        response.setUserId(created.getUserId());
+        response.setUserId(created.getUserId() != null ? String.valueOf(created.getUserId()) : null);
         response.setUsername(created.getUsername());
         response.setRole(created.getRole() != null ? created.getRole().getCode() : null);
         response.setStatus(created.getStatus() != null ? created.getStatus().getCode() : null);
@@ -115,5 +114,29 @@ public class BusinessCustomerRestController {
         transfer.setIdentifier(transferId);
         Transfer rejected = businessCustomerPort.rejectCompanyTransfer(authenticatedUser, transfer);
         return ResponseEntity.ok(TransferRestMapper.toResponseDTO(rejected));
+    }
+
+    private application.domain.valueobjects.SystemRole mapSystemRole(String code) {
+        if (code == null) {
+            return null;
+        }
+        switch (code) {
+            case "NATURAL_CUSTOMER":
+                return application.domain.valueobjects.SystemRole.NATURAL_CUSTOMER;
+            case "BUSINESS_CUSTOMER":
+                return application.domain.valueobjects.SystemRole.BUSINESS_CUSTOMER;
+            case "TELLER_EMPLOYEE":
+                return application.domain.valueobjects.SystemRole.TELLER_EMPLOYEE;
+            case "COMMERCIAL_EMPLOYEE":
+                return application.domain.valueobjects.SystemRole.COMMERCIAL_EMPLOYEE;
+            case "BUSINESS_OPERATOR":
+                return application.domain.valueobjects.SystemRole.BUSINESS_OPERATOR;
+            case "BUSINESS_SUPERVISOR":
+                return application.domain.valueobjects.SystemRole.BUSINESS_SUPERVISOR;
+            case "INTERNAL_ANALYST":
+                return application.domain.valueobjects.SystemRole.INTERNAL_ANALYST;
+            default:
+                return null;
+        }
     }
 }

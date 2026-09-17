@@ -1,6 +1,7 @@
 package application.adapters.useCases;
 
 import application.domain.models.BankAccount;
+import application.domain.models.CustomerProducts;
 import application.domain.models.Operation;
 import application.domain.models.Transfer;
 import application.domain.models.User;
@@ -40,6 +41,6 @@ public class BusinessOperatorUseCaseImpl implements BusinessOperatorPort {
 
     @Override
     public List<Operation> consultCompanyOperations(User user) {
-        return consultOperationsService.findByCustomer(user.getCustomer());
+        return consultOperationsService.executeByUser(user, user);
     }
 }

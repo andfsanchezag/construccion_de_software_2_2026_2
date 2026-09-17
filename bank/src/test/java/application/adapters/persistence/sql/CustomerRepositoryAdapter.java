@@ -6,19 +6,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.stereotype.Service;
-
 import application.domain.models.Customer;
 import application.domain.ports.out.CustomerRepositoryPort;
 
 /**
- * In-memory persistence adapter for Customer.
+ * In-memory test double of {@link CustomerRepositoryPort}.
  *
- * It stays inside the adapter layer and implements the CustomerRepositoryPort,
- * so the domain never depends on a concrete store.
+ * <p>It lives in the test sources so the unit tests of the domain services can run
+ * without MySQL. Production persistence is provided by the JPA adapters under
+ * {@code application.adapters.persistence.jpa}.
  */
-@Service
-public class CustomerRepositoryAdapter implements CustomerRepositoryPort {
+public final class CustomerRepositoryAdapter implements CustomerRepositoryPort {
 
     private final Map<String, Customer> store = new HashMap<>();
 

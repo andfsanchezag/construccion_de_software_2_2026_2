@@ -31,7 +31,7 @@ public class InternalAnalystUseCaseImpl implements InternalAnalystPort {
     private final ApproveLoanService approveLoanService;
     private final RejectLoanService rejectLoanService;
     private final DisburseLoanService disburseLoanService;
-    private final CancelLoanService closeLoanService;
+    private final CancelLoanService cancelLoanService;
     private final ConsultAuditLogsService consultAuditLogsService;
     private final ConsultOperationsService consultOperationsService;
 
@@ -42,12 +42,14 @@ public class InternalAnalystUseCaseImpl implements InternalAnalystPort {
 
     @Override
     public Customer changeCustomerStatus(User user, Customer customer, application.domain.valueobjects.CustomerStatus newStatus) {
-        return changeCustomerStatusService.changeStatus(user, customer, newStatus);
+        customer.setStatus(newStatus);
+        return changeCustomerStatusService.changeCustomerStatus(user, customer);
     }
 
     @Override
     public User changeUserStatus(User user, User targetUser, application.domain.valueobjects.UserStatus newStatus) {
-        return changeUserStatusService.changeStatus(user, targetUser, newStatus);
+        targetUser.setStatus(newStatus);
+        return changeUserStatusService.changeUserStatus(user, targetUser);
     }
 
     @Override
@@ -57,27 +59,27 @@ public class InternalAnalystUseCaseImpl implements InternalAnalystPort {
 
     @Override
     public Loan rejectLoan(User user, Loan loan) {
-        return rejectLoanService.execute(user, loan);
+        return rejectLoanService.reject(user, loan);
     }
 
     @Override
     public Loan disburseLoan(User user, Loan loan, BankAccount destinationAccount) {
         loan.setDestinationAccount(destinationAccount);
-        return disburseLoanService.execute(user, loan);
+        return disburseLoanService.disburse(user, loan);
     }
 
     @Override
     public Loan closeLoan(User user, Loan loan) {
-        return closeLoanService.execute(user, loan);
+        return cancelLoanService.cancel(user, loan);
     }
 
     @Override
     public List<AuditLog> consultAuditLog(User user) {
-        return consultAuditLogsService.findAll();
+        return consultAuditLogsService.executeByUser(user, user);
     }
 
     @Override
     public List<Operation> consultAllOperations(User user) {
-        return consultOperationsService.findAll();
+        return consultOperationsService.executeByUser(user, user);
     }
 }

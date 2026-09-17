@@ -7,21 +7,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.stereotype.Service;
-
 import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.ports.out.BankAccountRepositoryPort;
 
 /**
- * In-memory persistence adapter for BankAccount.
+ * In-memory test double of {@link BankAccountRepositoryPort}.
  *
- * It stays inside the adapter layer and implements the BankAccountRepositoryPort,
- * so the domain never depends on a concrete store. Replace this class with a real
- * SQL adapter without touching the domain.
+ * <p>It lives in the test sources so the unit tests of the domain services can run
+ * without MySQL. Production persistence is provided by the JPA adapters under
+ * {@code application.adapters.persistence.jpa}.
  */
-@Service
-public class BankAccountRepositoryAdapter implements BankAccountRepositoryPort {
+public final class BankAccountRepositoryAdapter implements BankAccountRepositoryPort {
 
     private final Map<String, BankAccount> store = new HashMap<>();
     private final AtomicInteger sequence = new AtomicInteger(0);

@@ -26,6 +26,7 @@ import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.valueobjects.Money;
 import application.domain.ports.in.NaturalCustomerPort;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,7 +36,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/natural-customer")
 public class NaturalCustomerRestController {
 
     private final NaturalCustomerPort naturalCustomerPort;

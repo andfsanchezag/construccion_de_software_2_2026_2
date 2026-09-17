@@ -9,10 +9,12 @@ import application.adapters.rest.dtos.responses.AccountBalanceResponseDTO;
 import application.adapters.rest.mappers.CustomerRestMapper;
 import application.adapters.rest.mappers.BankAccountRestMapper;
 import application.domain.models.Customer;
+import application.domain.models.NaturalCustomer;
 import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.valueobjects.Money;
 import application.domain.ports.in.TellerEmployeePort;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +36,7 @@ public class TellerEmployeeRestController {
             @AuthenticationPrincipal User authenticatedUser,
             @PathVariable String identification) {
         
-        Customer customer = new Customer();
+        Customer customer = new NaturalCustomer();
         customer.setIdentification(identification);
         Customer found = tellerEmployeePort.consultCustomer(authenticatedUser, customer);
         return ResponseEntity.ok(CustomerRestMapper.toResponseDTO(found));
