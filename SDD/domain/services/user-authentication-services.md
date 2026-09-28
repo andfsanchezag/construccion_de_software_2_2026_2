@@ -722,43 +722,19 @@ The actual token generation, signing algorithm, secret keys, expiration, and JWT
 
 # JWT Claims
 
-The authentication token represents the authenticated user.
-
-The required user information for the token is:
+The token carries only security metadata needed to identify and invalidate the session:
 
 ```text
-username
-role
+sub                 = immutable userId
+jti                 = unique token identifier
+authTokenVersion    = current persisted User.authTokenVersion
+iat
+exp
 ```
 
-The password must **not** be included in the JWT.
+Do not include password, email, identification, customer profile, role, or authorization snapshots in the JWT. The current role, status, and customer relationship are loaded from authoritative storage for every protected request.
 
-Even though the password is part of the login request and is used to validate the credentials, it must never be exposed as a JWT claim.
-
-The conceptual token is therefore:
-
-```text
-JWT
-├── username
-└── role
-```
-
-The password is used only for authentication:
-
-```text
-Provided Password
-       │
-       ▼
-PasswordSecurityPort
-       │
-       ▼
-Validation
-       │
-       ▼
-Discarded
-```
-
-It must not become part of the authentication token.
+The password is used only for credential verification and is discarded; it must never become a token claim.
 
 ---
 
@@ -861,6 +837,26 @@ Authentication Allowed?
              ▼
      InvalidUserStatusException
 ```
+
+---
+
+# 4. Change User Password
+# Logout
+
+## Description
+
+Invalidates all previously issued JWTs for the authenticated user. Because access tokens are stateless, clearing a client-side token alone does not satisfy logout.
+
+## Input and Processing
+
+The service receives the authenticated `User`, loads its authoritative current state, and calls `UserRepositoryPort.incrementAuthTokenVersion(user)` atomically. New tokens use the returned version; every request carrying an older version is rejected as unauthenticated. Logout does not change the user's active status or role.
+
+## Preconditions and Result
+
+- The caller must be authenticated as the same user being logged out.
+- Unknown or inactive users cannot log out through a protected session.
+- Success returns no domain data; the REST contract responds `204 No Content`.
+- The repository operation must be atomic so concurrent logouts cannot restore an earlier version.
 
 ---
 
@@ -1088,7 +1084,7 @@ JwtServicePort
 ## Canonical port naming
 
 The following names used historically in this document are aliases of the
-canonical ports defined in `SDD/Domain/Output-ports.md`:
+canonical ports defined in `SDD_cs2/Domain/Output-ports.md`:
 
 | Name used in this document | Canonical Output Port |
 |---|---|
@@ -1146,7 +1142,7 @@ public interface UserRepositoryPort {
 }
 ```
 
-defined in `SDD/Domain/Output-ports.md`. The persistence implementation may use the username to query the database, but this remains an implementation detail.
+defined in `SDD_cs2/Domain/Output-ports.md`. The persistence implementation may use the username to query the database, but this remains an implementation detail.
 
 ---
 

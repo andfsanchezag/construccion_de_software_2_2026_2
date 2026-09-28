@@ -16,6 +16,8 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 - `Content-Type`: `application/json` (Required for `POST`, `PUT`, `PATCH`)
 - `Accept`: `application/json` (Required)
 
+The server accepts or generates `X-Request-Id` and returns it on every response. All errors use the envelope and HTTP mapping in `SDD_cs2/Adapters/Global-exception-handler.md`; request validation follows `SDD_cs2/Adapters/Rest-validation.md`. Browser CORS is restricted as specified in `SDD_cs2/Adapters/Rest-security-cors.md` (`FRONTEND_ORIGIN`, default `http://localhost:5173`). Preflight `OPTIONS` does not require JWT.
+
 ---
 
 ## 3. Public Access Endpoints (`PublicAccessPort`)
@@ -51,6 +53,7 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 - **Path:** `/api/v1/auth/logout`
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Request Body:** None
+- **Behavior:** Increments the authenticated user's `authTokenVersion`; all previously issued tokens are rejected from then on.
 - **Response (HTTP 204 No Content)**
 
 ### 3.3. Self-Register Natural Customer
@@ -156,13 +159,19 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 ```
 - **Response (`CustomerResponseDTO` - HTTP 200 OK)**
 
-### 4.3. Consult My Accounts
+### 4.3. Consult My Products
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/natural-customer/products`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`CustomerProductsResponseDTO` - HTTP 200 OK)**
+
+### 4.4. Consult My Accounts
 - **HTTP Method:** `GET`
 - **Path:** `/api/v1/natural-customer/accounts`
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Response (`List<BankAccountResponseDTO>` - HTTP 200 OK)**
 
-### 4.4. Consult Account Balance
+### 4.5. Consult Account Balance
 - **HTTP Method:** `GET`
 - **Path:** `/api/v1/natural-customer/accounts/{accountNumber}/balance`
 - **Headers:** `Authorization: Bearer <jwt_token>`
@@ -175,7 +184,7 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 }
 ```
 
-### 4.5. Request Loan
+### 4.6. Request Loan
 - **HTTP Method:** `POST`
 - **Path:** `/api/v1/natural-customer/loans`
 - **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
@@ -199,13 +208,13 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 }
 ```
 
-### 4.6. Consult My Loan Details
+### 4.7. Consult My Loan Details
 - **HTTP Method:** `GET`
 - **Path:** `/api/v1/natural-customer/loans/{loanId}`
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Response (`LoanResponseDTO` - HTTP 200 OK)**
 
-### 4.7. Register Loan Payment
+### 4.8. Register Loan Payment
 - **HTTP Method:** `POST`
 - **Path:** `/api/v1/natural-customer/loans/{loanId}/payments`
 - **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
@@ -218,7 +227,7 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 ```
 - **Response (`LoanPaymentResponseDTO` - HTTP 200 OK)**
 
-### 4.8. Create & Execute Transfer
+### 4.9. Create & Execute Transfer
 - **HTTP Method:** `POST`
 - **Path:** `/api/v1/natural-customer/transfers`
 - **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
@@ -243,13 +252,15 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 }
 ```
 
-### 4.9. Consult My Operations History
+### 4.10. Consult My Operations History
 - **HTTP Method:** `GET`
 - **Path:** `/api/v1/natural-customer/operations`
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Response (`List<OperationResponseDTO>` - HTTP 200 OK)**
 
 ---
+
+This REST operation invokes `NaturalCustomerPort.createTransfer` and `NaturalCustomerPort.executeTransfer` in one request. The domain service must validate and persist the transfer atomically; a failed execution must not leave a transfer reported as executed.
 
 ## 5. Business Customer Endpoints (`BusinessCustomerPort`)
 
@@ -259,7 +270,26 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Response (`BusinessCustomerResponseDTO` - HTTP 200 OK)**
 
-### 5.2. Register Delegated Company User
+### 5.2. Consult Company Products
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/business-customer/products`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`CustomerProductsResponseDTO` - HTTP 200 OK)**
+
+### 5.3. Consult Company Accounts
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/business-customer/accounts`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`List<BankAccountResponseDTO>` - HTTP 200 OK)**
+
+### 5.4. Request Company Loan
+- **HTTP Method:** `POST`
+- **Path:** `/api/v1/business-customer/loans`
+- **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
+- **Request Body (`RequestLoanRequestDTO`):** Same fields as the natural-customer loan request; the applicant is resolved from the authenticated business user.
+- **Response (`LoanResponseDTO` - HTTP 201 Created)**
+
+### 5.5. Register Delegated Company User
 - **HTTP Method:** `POST`
 - **Path:** `/api/v1/business-customer/users`
 - **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
@@ -276,14 +306,14 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 ```
 - **Response (`UserResponseDTO` - HTTP 201 Created)**
 
-### 5.3. Approve Company Transfer
+### 5.6. Approve Company Transfer
 - **HTTP Method:** `PATCH`
 - **Path:** `/api/v1/business-customer/transfers/{transferId}/approve`
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Request Body:** None
 - **Response (`TransferResponseDTO` - HTTP 200 OK)**
 
-### 5.4. Reject Company Transfer
+### 5.7. Reject Company Transfer
 - **HTTP Method:** `PATCH`
 - **Path:** `/api/v1/business-customer/transfers/{transferId}/reject`
 - **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
@@ -321,6 +351,21 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 }
 ```
 
+### 6.2. Consult Company Accounts
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/business-operator/accounts`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`List<BankAccountResponseDTO>` - HTTP 200 OK)**
+- **Errors:** `401` (`AUTHENTICATION_REQUIRED`, `INVALID_CREDENTIALS`), `403` (`FORBIDDEN` wrong role)
+
+### 6.3. Consult Company Operations
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/business-operator/operations`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`List<OperationResponseDTO>` - HTTP 200 OK)**
+
+The create-transfer endpoint evaluates the configured approval threshold as part of submission: a transfer below the threshold is executed; a transfer above it is persisted as `WAITING_FOR_APPROVAL`. The use-case adapter must preserve both `createCompanyTransfer` and `submitTransferForApproval` domain operations without requiring the client to submit the same request twice.
+
 ---
 
 ## 7. Business Supervisor Endpoints (`BusinessSupervisorPort`)
@@ -336,6 +381,20 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 - **Path:** `/api/v1/business-supervisor/transfers/{transferId}/approve`
 - **Headers:** `Authorization: Bearer <jwt_token>`
 - **Response (`TransferResponseDTO` - HTTP 200 OK)**
+
+### 7.3. Reject Pending Transfer
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/business-supervisor/transfers/{transferId}/reject`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Request Body:** None
+- **Response (`TransferResponseDTO` - HTTP 200 OK)**
+- **Errors:** `404` (unknown transfer), `409` (not `WAITING_FOR_APPROVAL`)
+
+### 7.4. Consult Company Operations
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/business-supervisor/operations`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`List<OperationResponseDTO>` - HTTP 200 OK)**
 
 ---
 
@@ -379,6 +438,60 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 ```
 - **Response (`BankAccountResponseDTO` - HTTP 200 OK)**
 
+### 8.4. Consult Customer by Identification
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/teller/customers?identification={identification}`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Query Parameters:** `identification` (required, identification format)
+- **Response (`CustomerResponseDTO` - HTTP 200 OK)**
+- **Errors:** `400` (missing `identification`), `404` (`CUSTOMER_NOT_FOUND`)
+
+### 8.5. Open Bank Account
+- **HTTP Method:** `POST`
+- **Path:** `/api/v1/teller/accounts`
+- **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
+- **Request Body (`OpenAccountRequestDTO`):**
+```json
+{
+  "ownerIdentification": "1017123456",
+  "accountNumber": "CTA-100200300",
+  "accountType": "SAVINGS",
+  "currency": "COP"
+}
+```
+- **Response (`BankAccountResponseDTO` - HTTP 201 Created)**
+- **Errors:** `404` (unknown owner customer), `400` (invalid `accountType`/`currency`), `409` (duplicate account)
+
+### 8.6. Consult Bank Account
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/teller/accounts/{accountNumber}`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`BankAccountResponseDTO` - HTTP 200 OK)**
+- **Errors:** `404` (unknown account)
+
+### 8.7. Consult Account Balance
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/teller/accounts/{accountNumber}/balance`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`AccountBalanceResponseDTO` - HTTP 200 OK)**
+- **Errors:** `404` (unknown account)
+
+### 8.8. Unblock Bank Account
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/teller/accounts/{accountNumber}/unblock`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Request Body:** None
+- **Response (`BankAccountResponseDTO` - HTTP 200 OK)**
+- **Errors:** `404` (unknown account), `409` (not blocked / illegal transition)
+
+### 8.9. Close Bank Account
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/teller/accounts/{accountNumber}/close`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Request Body:** None
+- **Response (`BankAccountResponseDTO` - HTTP 200 OK)**
+- **Errors:** `404` (unknown account), `409` (non-zero balance / illegal transition)
+
 ---
 
 ## 9. Commercial Employee Endpoints (`CommercialEmployeePort`)
@@ -398,6 +511,38 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 }
 ```
 - **Response (`LoanResponseDTO` - HTTP 201 Created)**
+
+### 9.2. Consult Customer
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/commercial/customers/{identification}`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`CustomerResponseDTO` - HTTP 200 OK)**
+
+### 9.3. Update Customer
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/commercial/customers/{identification}`
+- **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
+- **Request Body (`UpdateCustomerProfileRequestDTO`):** Editable customer profile fields only.
+- **Response (`CustomerResponseDTO` - HTTP 200 OK)**
+
+### 9.4. Consult Customer Products
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/commercial/customers/{identification}/products`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`CustomerProductsResponseDTO` - HTTP 200 OK)**
+
+### 9.5. Consult Loan Status
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/commercial/loans/{loanId}`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`LoanResponseDTO` - HTTP 200 OK)**
+
+### 9.6. Open Bank Account for Customer
+- **HTTP Method:** `POST`
+- **Path:** `/api/v1/commercial/accounts`
+- **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
+- **Request Body (`OpenAccountRequestDTO`):** Owner identification and account type/currency.
+- **Response (`BankAccountResponseDTO` - HTTP 201 Created)**
 
 ---
 
@@ -480,8 +625,29 @@ For all protected endpoints (all endpoints except Public Access Login & Registra
 }
 ```
 
-### 10.6. Delete / Cancel Resource
-- **HTTP Method:** `DELETE`
-- **Path:** `/api/v1/internal-analyst/loans/{loanId}`
+### 10.6. Consult All Operations
+- **HTTP Method:** `GET`
+- **Path:** `/api/v1/internal-analyst/operations`
 - **Headers:** `Authorization: Bearer <jwt_token>`
-- **Response (HTTP 204 No Content)**
+- **Response (`List<OperationResponseDTO>` - HTTP 200 OK)**
+
+### 10.7. Change User Status
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/internal-analyst/users/{userId}/status`
+- **Headers:** `Authorization: Bearer <jwt_token>`, `Content-Type: application/json`
+- **Request Body (`ChangeUserStatusRequestDTO`):** Target `UserStatus` and reason.
+- **Response (`UserResponseDTO` - HTTP 200 OK)**
+
+### 10.8. Close Loan
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/internal-analyst/loans/{loanId}/close`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (`LoanResponseDTO` - HTTP 200 OK)**
+
+### 10.9. Reject Loan Request
+- **HTTP Method:** `PATCH`
+- **Path:** `/api/v1/internal-analyst/loans/{loanId}/reject`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Request Body:** None
+- **Response (`LoanResponseDTO` - HTTP 200 OK)**
+- **Errors:** `404` (unknown loan), `409` (not `UNDER_REVIEW` / illegal transition)

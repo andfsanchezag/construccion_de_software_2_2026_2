@@ -983,7 +983,7 @@ The canonical Output Port is:
 UserRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`, with the contract:
+defined in `SDD_cs2/Domain/Output-ports.md`, with the contract:
 
 ```java
 public interface UserRepositoryPort {
@@ -1016,7 +1016,7 @@ The canonical Output Port is:
 CustomerRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`, with the contract:
+defined in `SDD_cs2/Domain/Output-ports.md`, with the contract:
 
 ```java
 public interface CustomerRepositoryPort {
@@ -1053,7 +1053,7 @@ The canonical Output Port is:
 BankAccountRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`. The authorization service must never access account persistence directly.
+defined in `SDD_cs2/Domain/Output-ports.md`. The authorization service must never access account persistence directly.
 
 ---
 
@@ -1071,7 +1071,7 @@ The canonical Output Port is:
 LoanRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`.
+defined in `SDD_cs2/Domain/Output-ports.md`.
 
 ---
 
@@ -1089,7 +1089,7 @@ The canonical Output Port is:
 TransferRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`.
+defined in `SDD_cs2/Domain/Output-ports.md`.
 
 ---
 

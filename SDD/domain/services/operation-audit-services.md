@@ -809,7 +809,7 @@ The canonical Output Port is:
 OperationRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`, with the contract:
+defined in `SDD_cs2/Domain/Output-ports.md`, with the contract:
 
 ```java
 public interface OperationRepositoryPort {
@@ -846,7 +846,7 @@ The canonical Output Port is:
 AuditLogRepositoryPort
 ```
 
-defined in `SDD/Domain/Output-ports.md`, with the contract:
+defined in `SDD_cs2/Domain/Output-ports.md`, with the contract:
 
 ```java
 public interface AuditLogRepositoryPort {

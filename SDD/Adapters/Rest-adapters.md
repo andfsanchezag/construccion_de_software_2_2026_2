@@ -12,7 +12,7 @@ REST Adapters reside in `application/adapters/rest/`. They handle HTTP transport
 HTTP Request (Client)
       |
       v  Contains JWT Token
-Security Filter / Middleware
+Spring Security Filter Chain
       |  Extracts Claims & Reconstructs User Domain Model
       v
 REST Controller (adapters/rest/controllers)
@@ -34,21 +34,19 @@ Use Case Implementation
 2. The controller calls `PublicAccessPort.login(userModel)`.
 3. Upon successful credential validation, the system issues a **JWT Token**.
 4. **JWT Payload Contents:**
-   - `sub` / `userId`: Unique User ID.
-   - `username`: Account username.
-   - `role`: System role (e.g. `NATURAL_CUSTOMER`, `INTERNAL_ANALYST`, etc.).
-   - `email`: User email address.
-   - `identification`: DNI / NIT document.
-   - `customer`: Associated customer profile information.
+    - `sub`: Immutable internal user identifier.
+    - `jti`: Unique token identifier.
+    - `ver`: Current persisted `User.authTokenVersion` used to invalidate previous sessions.
+    - `iat` and `exp`: Issuance and expiration timestamps.
+    - Do not include passwords, email, identification, customer profiles, or authorization snapshots in claims.
 
 ### 3.2 JWT Extraction & User Reconstruction
 For every protected HTTP request:
 1. The **Security Filter / Interceptor** intercepts the `Authorization: Bearer <token>` header.
-2. It verifies the signature and extracts claims (`userId`, `username`, `role`, `email`, `identification`, `customer`).
-3. It reconstructs a complete `User` Domain Model from these claims.
-4. The reconstructed `User` object is injected into the controller context (or request scope).
-5. The REST class evaluates the user's `SystemRole` against the targeted Role Input Port before invoking the Use Case.
-6. The REST controller passes the reconstructed `User` domain model to the Input Port method so that domain services have full user context for business rules and queries.
+2. It verifies the signature, issuer/audience where configured, and expiration, then extracts only the subject and token identifier.
+3. A Spring Security `UserDetailsService` loads the current user by subject through `UserRepositoryPort`; it rejects missing, inactive, or blocked users and rejects a token whose `ver` differs from the user's current `authTokenVersion`. Current role and customer association come from this authoritative Domain Model, not JWT claims.
+4. The security adapter creates an `AuthenticatedUserPrincipal` that contains the loaded `User` Domain Model and Spring `GrantedAuthority` values. Spring Security types remain outside `domain/`.
+5. The REST controller obtains that principal and passes its `User` Domain Model to the Role Input Port. The role guard must use the loaded user's current role and the ownership/business-scope checks defined by the domain.
 
 ---
 
@@ -94,13 +92,15 @@ public class NaturalCustomerLoanRestController {
 
     @PostMapping
     public ResponseEntity<LoanResponseDTO> requestLoan(
-            @AuthenticationPrincipal User authenticatedUser, // User reconstructed from JWT
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestBody LoanRequestDTO requestDTO) {
+
+        User authenticatedUser = principal.domainUser();
 
         // 1. Mapeo RequestDTO -> Domain Model
         Loan loanModel = LoanRestMapper.toDomain(requestDTO);
 
-        // 2. Invocación del Caso de Uso (Input Port) pasando el User reconstruido
+        // 2. Invocación del Caso de Uso (Input Port) pasando el usuario autenticado
         Loan requestedLoan = naturalCustomerPort.requestLoan(authenticatedUser, loanModel);
 
         // 3. Mapeo Domain Model -> ResponseDTO
@@ -114,8 +114,6 @@ public class NaturalCustomerLoanRestController {
 ```java
 package application.infrastructure.security;
 
-import application.domain.models.User;
-import application.domain.valueobjects.SystemRole;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -127,9 +125,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    private final SecurityUserLoader securityUserLoader;
 
-    public JwtAuthenticationFilter(JwtProvider jwtProvider) {
+    public JwtAuthenticationFilter(JwtProvider jwtProvider, SecurityUserLoader securityUserLoader) {
         this.jwtProvider = jwtProvider;
+        this.securityUserLoader = securityUserLoader;
     }
 
     @Override
@@ -140,15 +140,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtProvider.validateToken(token)) {
             Claims claims = jwtProvider.getClaims(token);
             
-            // Reconstrucción del objeto de dominio User desde las claims del JWT
-            User userDomain = new User();
-            userDomain.setUserId(claims.get("userId", String.class));
-            userDomain.setUsername(claims.getSubject());
-            userDomain.setRole(SystemRole.valueOf(claims.get("role", String.class)));
-            userDomain.setEmail(claims.get("email", String.class));
-            
+            // Load current status, role, and customer relationship from authoritative storage.
+                AuthenticatedUserPrincipal principal = securityUserLoader.loadActiveUser(
+                    claims.getSubject(), claims.get("ver", Long.class));
             UsernamePasswordAuthenticationToken auth = 
-                new UsernamePasswordAuthenticationToken(userDomain, null, userDomain.getAuthorities());
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
         filterChain.doFilter(request, response);
@@ -158,66 +154,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 ---
 
-## 6. Code Pattern Example (TypeScript / NestJS / Express)
-
-### A. Controller Pattern
-```typescript
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
-import { NaturalCustomerPort } from '../../../domain/ports/in/NaturalCustomerPort';
-import { LoanRestMapper } from '../mappers/LoanRestMapper';
-import { LoanRequestDTO } from '../dtos/requests/LoanRequestDTO';
-import { LoanResponseDTO } from '../dtos/responses/LoanResponseDTO';
-import { JwtAuthGuard } from '../../../infrastructure/security/JwtAuthGuard';
-
-@Controller('api/v1/natural-customer/loans')
-@UseGuards(JwtAuthGuard)
-public class NaturalCustomerLoanController {
-
-  constructor(private readonly naturalCustomerPort: NaturalCustomerPort) {}
-
-  @Post()
-  async requestLoan(@Req() req: any, @Body() dto: LoanRequestDTO): Promise<LoanResponseDTO> {
-    // 1. User domain model reconstructed from JWT payload by JwtAuthGuard
-    const authenticatedUser = req.user;
-
-    // 2. Map RequestDTO -> Domain Model
-    const loanModel = LoanRestMapper.toDomain(dto);
-
-    // 3. Call Use Case Input Port
-    const requestedLoan = await this.naturalCustomerPort.requestLoan(authenticatedUser, loanModel);
-
-    // 4. Map Domain Model -> ResponseDTO
-    return LoanRestMapper.toResponseDTO(requestedLoan);
-  }
-}
-```
-
-### B. JWT Strategy / Guard (User Reconstruction)
-```typescript
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { User } from '../../../domain/models/User';
-import { SystemRole } from '../../../domain/valueobjects/SystemRole';
-
-@Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET,
-    });
-  }
-
-  async validate(payload: any): Promise<User> {
-    // Reconstruct User domain model from JWT payload claims
-    const user = new User();
-    user.userId = payload.userId;
-    user.username = payload.sub;
-    user.role = payload.role as SystemRole;
-    user.email = payload.email;
-    user.identification = payload.identification;
-    return user;
-  }
-}
-```

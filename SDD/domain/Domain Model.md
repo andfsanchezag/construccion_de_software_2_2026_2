@@ -221,6 +221,7 @@ This class represents access to the banking system and is not a replacement for 
 | username  | String     | Login name used during authentication.                                                                  |
 | password  | String     | Secure password hash stored by the system.                                                              |
 | status    | UserStatus | Current status of the user's system access.                                                             |
+| authTokenVersion | Long | Monotonically increasing session version used to invalidate all previously issued tokens on logout. |
 | customer  | Customer?  | Customer represented by the user when applicable. Internal users may not be associated with a customer. |
 
 ## Relationships

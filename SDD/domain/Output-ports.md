@@ -164,6 +164,8 @@ public interface UserRepositoryPort {
     boolean existsByUsername(User user);
 
     void update(User user);
+
+    User incrementAuthTokenVersion(User user);
 }
 ```
 

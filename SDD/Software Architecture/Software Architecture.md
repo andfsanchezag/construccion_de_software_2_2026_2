@@ -49,10 +49,10 @@ Each component has a clearly defined responsibility.
 ```text
 src/
 └── main/
-    └── java/ (or ts/)
-        └── application/
-            │
-            ├── App.java
+        └── java/
+                └── application/
+                        │
+                        ├── App.java
             │
             ├── adapters/
             │   │
@@ -74,16 +74,16 @@ src/
             │   │   └── InternalAnalystUseCaseImpl.java
             │   │
             │   └── persistence/                   <-- Output Persistence Layer
-            │       ├── jpa/ (or typeorm/)         <-- Relational Persistence (SQL)
+            │       ├── jpa/                      <-- Relational Persistence (SQL)
             │       │   ├── entities/              <-- Repository Entities / DTOs
             │       │   ├── mappers/               <-- Entity <-> Domain Mappers
-            │       │   ├── repositories/          <-- Spring Data JPA / TypeORM Repositories
+            │       │   ├── repositories/          <-- Spring Data JPA Repositories
             │       │   └── BankAccountJpaAdapter.java <-- Implements Output Port
             │       │
-            │       └── mongodb/ (or mongoose/)    <-- NoSQL Persistence (Audit)
+            │       └── mongodb/                   <-- NoSQL Persistence (Audit)
             │           ├── documents/             <-- Repository Documents / DTOs
             │           ├── mappers/               <-- Document <-> Domain Mappers
-            │           ├── repositories/          <-- Spring Data Mongo / Mongoose Repositories
+            │           ├── repositories/          <-- Spring Data MongoDB Repositories
             │           └── AuditLogMongoAdapter.java <-- Implements Output Port
             │
             ├── domain/
@@ -188,7 +188,7 @@ Implement the **Role Input Ports** defined in `domain/ports/in/`.
 
 Connect Domain Output Ports (`domain/ports/out/`) with databases (relational SQL and NoSQL MongoDB).
 
-Persistence terminology and ORM technologies are adapted according to the project language stack:
+This project uses Java and Spring Data exclusively:
 
 ### Java Stack (Spring Data)
 - **Relational Persistence (JPA / SQL):**
@@ -200,18 +200,6 @@ Persistence terminology and ORM technologies are adapted according to the projec
   - **Documents (`@Document`):** MongoDB collection mapping DTOs.
   - **Repositories:** Extend Spring Data `MongoRepository`.
   - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `Mongo Document`).
-  - **Adapters:** Implement Output Ports (e.g. `AuditLogMongoAdapter`).
-
-### TypeScript Stack (TypeORM / Prisma / Mongoose)
-- **Relational Persistence (SQL - TypeORM / Prisma):**
-  - **Entities (`@Entity()` / Prisma Model):** Relational mapping DTOs.
-  - **Repositories:** TypeORM Repositories / Custom Data Adapters.
-  - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `TypeORM Entity`).
-  - **Adapters:** Implement Output Ports (e.g. `BankAccountTypeOrmAdapter`).
-- **NoSQL Persistence (MongoDB - Mongoose):**
-  - **Schemas / Documents:** Mongoose Schema definitions.
-  - **Repositories:** Mongoose Models.
-  - **Mappers:** Bidirectional conversion (`Domain Model` ↔ `Mongoose Document`).
   - **Adapters:** Implement Output Ports (e.g. `AuditLogMongoAdapter`).
 
 ---

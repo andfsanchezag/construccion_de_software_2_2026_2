@@ -2479,7 +2479,7 @@ AuditLogRepositoryPort
 The names `LoanRepository`, `CustomerRepository`, `BankAccountRepository`,
 `OperationRepository`, and `AuditRepository` used historically in this
 document are aliases of the canonical ports defined in
-`SDD/Domain/Output-ports.md`:
+`SDD_cs2/Domain/Output-ports.md`:
 
 | Name used in this document | Canonical Output Port |
 |---|---|

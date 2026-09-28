@@ -714,7 +714,7 @@ AuditLogRepositoryPort
 ## Canonical port naming
 
 The name `AuditRepositoryPort` used historically in this document is an
-alias of the canonical port defined in `SDD/Domain/Output-ports.md`:
+alias of the canonical port defined in `SDD_cs2/Domain/Output-ports.md`:
 
 | Name used in this document | Canonical Output Port |
 |---|---|

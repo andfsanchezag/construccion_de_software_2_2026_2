@@ -55,6 +55,7 @@ This class cannot be instantiated directly.
 * Catalog values are controlled by the domain.
 * Catalog values must not be represented by arbitrary strings throughout the application.
 * Each catalog value must have a unique `code`.
+* Each concrete catalog must expose a validated `fromCode(String code)` factory that returns a supported value and rejects unknown codes. Persistence and REST mappers must use this factory instead of constructing arbitrary catalog instances.
 
 ---
 
