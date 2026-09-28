@@ -36,6 +36,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
+@RequestMapping("/api/v1/natural-customer")
 public class NaturalCustomerRestController {
 
     private final NaturalCustomerPort naturalCustomerPort;
