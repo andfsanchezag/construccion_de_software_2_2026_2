@@ -74,6 +74,18 @@ class RegisterNaturalCustomerServiceTest {
     }
 
     @Test
+    void publicSelfRegistrationSucceedsWithoutActor() {
+        NaturalCustomer customer = CustomerTestSupport.registrationCandidate("1006");
+
+        NaturalCustomer saved = service().registerNaturalCustomer(null, customer);
+
+        assertEquals(CustomerStatus.ACTIVE, saved.getStatus());
+        assertTrue(harness.customerRepository.findByIdentification(saved).isPresent());
+        assertEquals(1, harness.operationCount(OperationType.CUSTOMER_REGISTRATION));
+        assertEquals(1, harness.auditCount(OperationType.CUSTOMER_REGISTRATION));
+    }
+
+    @Test
     void failsWhenActorIsUnauthorized() {
         NaturalCustomer customer = CustomerTestSupport.registrationCandidate("1004");
         User analyst = CustomerTestSupport.analystUser(4);

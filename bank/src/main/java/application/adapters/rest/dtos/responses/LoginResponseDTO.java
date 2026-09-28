@@ -12,7 +12,7 @@ public class LoginResponseDTO {
 
     @Data
     public static class UserInfo {
-        private String userId;
+        private Integer userId;
         private String username;
         private String email;
         private String role;

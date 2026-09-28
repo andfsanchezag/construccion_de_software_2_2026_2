@@ -31,7 +31,7 @@ public class BusinessOperatorRestController {
     }
 
     @GetMapping("/accounts")
-    public ResponseEntity<List<BankAccountResponseDTO>> consultCompanyAccounts(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<BankAccountResponseDTO>> consultCompanyAccounts(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<BankAccount> accounts = businessOperatorPort.consultCompanyAccounts(authenticatedUser);
         return ResponseEntity.ok(accounts.stream()
                 .map(BankAccountRestMapper::toResponseDTO)
@@ -40,7 +40,7 @@ public class BusinessOperatorRestController {
 
     @PostMapping("/transfers")
     public ResponseEntity<TransferResponseDTO> createCompanyTransfer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody CreateTransferRequestDTO requestDTO) {
         
         Transfer transfer = TransferRestMapper.toDomain(requestDTO);
@@ -50,7 +50,7 @@ public class BusinessOperatorRestController {
 
     @PostMapping("/transfers/{transferId}/submit")
     public ResponseEntity<TransferResponseDTO> submitTransferForApproval(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String transferId) {
         
         Transfer transfer = new Transfer();
@@ -60,7 +60,7 @@ public class BusinessOperatorRestController {
     }
 
     @GetMapping("/operations")
-    public ResponseEntity<List<OperationResponseDTO>> consultCompanyOperations(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<OperationResponseDTO>> consultCompanyOperations(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<Operation> operations = businessOperatorPort.consultCompanyOperations(authenticatedUser);
         return ResponseEntity.ok(operations.stream()
                 .map(OperationRestMapper::toResponseDTO)

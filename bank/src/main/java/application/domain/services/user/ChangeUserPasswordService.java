@@ -39,6 +39,7 @@ public class ChangeUserPasswordService implements ChangeUserPasswordUseCase {
         validateStatus(stored);
         String securePassword = passwordServicePort.encrypt(user.getPassword());
         stored.setPassword(securePassword);
+        stored.bumpAuthTokenVersion();
         userRepositoryPort.update(stored);
     }
 

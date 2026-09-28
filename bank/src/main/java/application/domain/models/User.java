@@ -15,6 +15,15 @@ public class User extends Person {
     private String password;
     private UserStatus status;
     private Customer customer;
+    /**
+     * Token version bound to issued JWTs ({@code ver} claim).
+     *
+     * <p>Every issued token carries the version observed at login time. Any
+     * security-relevant change (password change, status transition) bumps this
+     * counter, rendering previously issued tokens obsolete: the authentication
+     * filter rejects tokens whose {@code ver} no longer matches.
+     */
+    private Integer authTokenVersion = 1;
 
     /**
      * Changes the UserStatus enforcing the transition matrix owned by the User
@@ -37,6 +46,17 @@ public class User extends Person {
                     "Invalid user status transition from " + statusCode() + " to " + target.getCode() + ".");
         }
         this.status = target;
+        bumpAuthTokenVersion();
+    }
+
+    /**
+     * Invalidates previously issued tokens by advancing the token version.
+     *
+     * <p>Must be invoked on every security-relevant mutation (password change,
+     * status transition) so that tokens issued before the change are rejected.
+     */
+    public void bumpAuthTokenVersion() {
+        this.authTokenVersion = (this.authTokenVersion == null ? 1 : this.authTokenVersion + 1);
     }
 
     /**

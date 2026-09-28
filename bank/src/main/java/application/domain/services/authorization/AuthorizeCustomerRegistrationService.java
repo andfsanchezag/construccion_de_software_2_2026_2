@@ -13,8 +13,12 @@ import org.springframework.stereotype.Service;
  *
  * <p>Banking employees (TELLER_EMPLOYEE / COMMERCIAL_EMPLOYEE) may register
  * customers, and a customer user may register the customer associated with
- * their {@code User.customer} (self registration). Other actors are not
- * authorized. The registration policy decision stays in this authorization
+ * their {@code User.customer} (self registration). A {@code null} actor
+ * represents public self-registration through the unauthenticated
+ * PublicAccess endpoints (Api-rest-endpoints.md 3.3/3.4): it is allowed here
+ * because the endpoint itself is public and the domain invariants (age,
+ * uniqueness, representative) are still enforced downstream. Other actors are
+ * not authorized. The registration policy decision stays in this authorization
  * service and is not duplicated by the Customer Services.
  */
 @Service
@@ -24,11 +28,12 @@ public class AuthorizeCustomerRegistrationService {
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
 
     public void execute(User user, Customer customer) {
-        if (user == null) {
-            throw new UnauthorizedCustomerOperationException("Requesting user must be provided.");
-        }
         if (customer == null) {
             throw new UnauthorizedCustomerOperationException("Customer must be provided.");
+        }
+        if (user == null) {
+            // Public self-registration (unauthenticated PublicAccess endpoint).
+            return;
         }
         validateUserAuthorizationStatusService.execute(user);
         if (isRegistrationEmployee(user)) {

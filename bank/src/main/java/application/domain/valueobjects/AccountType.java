@@ -12,4 +12,16 @@ public final class AccountType extends DomainCatalog {
     private AccountType(String code, String name, String description) {
         super(code, name, description);
     }
+
+    public static AccountType fromCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        return switch (code) {
+            case "SAVINGS" -> SAVINGS;
+            case "CHECKING" -> CHECKING;
+            case "BUSINESS" -> BUSINESS;
+            default -> throw new IllegalArgumentException("Unknown AccountType code: " + code);
+        };
+    }
 }

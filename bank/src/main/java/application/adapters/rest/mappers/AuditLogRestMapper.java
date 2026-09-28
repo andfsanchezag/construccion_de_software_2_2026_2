@@ -18,9 +18,9 @@ public class AuditLogRestMapper {
         dto.setAuditId(auditLog.getAuditId());
         dto.setOperationType(auditLog.getOperationType() != null ? auditLog.getOperationType().getCode() : null);
         dto.setOperationDate(auditLog.getOperationDate());
-        dto.setPerformedBy(auditLog.getPerformedBy());
+        dto.setPerformedBy(auditLog.getPerformedBy() != null ? auditLog.getPerformedBy().getUsername() : null);
         dto.setUserRole(auditLog.getUserRole() != null ? auditLog.getUserRole().getCode() : null);
-        dto.setAffectedProduct(auditLog.getAffectedProduct());
+        dto.setAffectedProduct(auditLog.getAffectedProduct() != null ? auditLog.getAffectedProduct().getIdentifier() : null);
         dto.setDetails(auditLog.getDetails());
         return dto;
     }

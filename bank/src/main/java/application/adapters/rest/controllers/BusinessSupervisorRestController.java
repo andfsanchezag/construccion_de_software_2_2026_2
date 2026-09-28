@@ -25,7 +25,7 @@ public class BusinessSupervisorRestController {
     }
 
     @GetMapping("/transfers/pending")
-    public ResponseEntity<List<TransferResponseDTO>> consultPendingTransfers(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<TransferResponseDTO>> consultPendingTransfers(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<Transfer> transfers = businessSupervisorPort.consultPendingTransfers(authenticatedUser);
         return ResponseEntity.ok(transfers.stream()
                 .map(TransferRestMapper::toResponseDTO)
@@ -34,7 +34,7 @@ public class BusinessSupervisorRestController {
 
     @PatchMapping("/transfers/{transferId}/approve")
     public ResponseEntity<TransferResponseDTO> approveTransfer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String transferId) {
         
         Transfer transfer = new Transfer();
@@ -45,7 +45,7 @@ public class BusinessSupervisorRestController {
 
     @PatchMapping("/transfers/{transferId}/reject")
     public ResponseEntity<TransferResponseDTO> rejectTransfer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String transferId) {
         
         Transfer transfer = new Transfer();
@@ -55,7 +55,7 @@ public class BusinessSupervisorRestController {
     }
 
     @GetMapping("/operations")
-    public ResponseEntity<List<OperationResponseDTO>> consultCompanyOperations(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<OperationResponseDTO>> consultCompanyOperations(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<Operation> operations = businessSupervisorPort.consultCompanyOperations(authenticatedUser);
         return ResponseEntity.ok(operations.stream()
                 .map(OperationRestMapper::toResponseDTO)

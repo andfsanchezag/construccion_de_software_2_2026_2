@@ -17,4 +17,16 @@ public final class Currency extends DomainCatalog {
         this.isoCode = isoCode;
         this.symbol = symbol;
     }
+
+    public static Currency fromCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        return switch (code) {
+            case "COP" -> COP;
+            case "USD" -> USD;
+            case "EUR" -> EUR;
+            default -> throw new IllegalArgumentException("Unknown Currency code: " + code);
+        };
+    }
 }

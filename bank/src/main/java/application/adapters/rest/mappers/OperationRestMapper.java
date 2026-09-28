@@ -2,11 +2,7 @@ package application.adapters.rest.mappers;
 
 import application.adapters.rest.dtos.responses.OperationResponseDTO;
 import application.domain.models.Operation;
-import application.domain.models.User;
 import lombok.experimental.UtilityClass;
-
-import java.time.LocalDateTime;
-import java.util.Map;
 
 @UtilityClass
 public class OperationRestMapper {
@@ -17,7 +13,7 @@ public class OperationRestMapper {
         }
         
         OperationResponseDTO dto = new OperationResponseDTO();
-        dto.setOperationId(operation.getIdentifier());
+        dto.setOperationId(operation.getOperationId() != null ? String.valueOf(operation.getOperationId()) : null);
         dto.setOperationType(operation.getOperationType() != null ? operation.getOperationType().getCode() : null);
         dto.setExecutionDate(operation.getExecutionDate());
         dto.setPerformedBy(operation.getPerformedBy() != null ? operation.getPerformedBy().getUsername() : null);
@@ -32,13 +28,11 @@ public class OperationRestMapper {
                 dto.setAffectedProductId(((application.domain.models.Loan) operation.getAffectedProduct()).getIdentifier());
             } else if (operation.getAffectedProduct() instanceof application.domain.models.Transfer) {
                 dto.setAffectedProductId(((application.domain.models.Transfer) operation.getAffectedProduct()).getIdentifier());
-            } else if (operation.getAffectedProduct() instanceof application.domain.models.Customer) {
-                dto.setAffectedProductId(((application.domain.models.Customer) operation.getAffectedProduct()).getIdentification());
             }
         }
         
-        // The details are already a Map in the domain model
-        dto.setDetails(operation.getDetails());
+        // Operation domain model carries no free-form details; response details stay null.
+        dto.setDetails(null);
         return dto;
     }
 }

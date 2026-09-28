@@ -33,7 +33,7 @@ public class CommercialEmployeeRestController {
 
     @GetMapping("/customers/{identification}")
     public ResponseEntity<CustomerResponseDTO> consultCustomer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String identification) {
         
         Customer customer = new NaturalCustomer();
@@ -44,7 +44,7 @@ public class CommercialEmployeeRestController {
 
     @PutMapping("/customers/{identification}")
     public ResponseEntity<CustomerResponseDTO> updateCustomer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String identification,
             @RequestBody CustomerUpdateRequestDTO requestDTO) {
         
@@ -60,7 +60,7 @@ public class CommercialEmployeeRestController {
 
     @GetMapping("/customers/{identification}/products")
     public ResponseEntity<CustomerProductsResponseDTO> consultCustomerProducts(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String identification) {
         
         Customer customer = new NaturalCustomer();
@@ -71,7 +71,7 @@ public class CommercialEmployeeRestController {
 
     @PostMapping("/loans")
     public ResponseEntity<LoanResponseDTO> requestLoanOnBehalfOfCustomer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody CommercialRequestLoanRequestDTO requestDTO) {
         
         Customer customer = new NaturalCustomer();
@@ -84,7 +84,7 @@ public class CommercialEmployeeRestController {
 
     @GetMapping("/loans/{loanId}")
     public ResponseEntity<LoanResponseDTO> consultLoanStatus(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId) {
         
         Loan loan = new Loan();
@@ -95,7 +95,7 @@ public class CommercialEmployeeRestController {
 
     @PostMapping("/accounts")
     public ResponseEntity<BankAccountResponseDTO> openBankAccount(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @RequestBody BankAccountRequestDTO requestDTO) {
         
         BankAccount account = toDomain(requestDTO);

@@ -12,11 +12,14 @@ import application.adapters.rest.mappers.UserRestMapper;
 import application.adapters.rest.mappers.CustomerRestMapper;
 import application.domain.models.NaturalCustomer;
 import application.domain.models.BusinessCustomer;
+import application.domain.models.AuthenticationResult;
 import application.domain.models.User;
 import application.domain.ports.in.PublicAccessPort;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,25 +27,27 @@ import org.springframework.web.bind.annotation.*;
 public class AuthRestController {
 
     private final PublicAccessPort publicAccessPort;
+    private final long expirationMs;
 
-    public AuthRestController(PublicAccessPort publicAccessPort) {
+    public AuthRestController(PublicAccessPort publicAccessPort,
+                              @Value("${jwt.expiration-ms:3600000}") long expirationMs) {
         this.publicAccessPort = publicAccessPort;
+        this.expirationMs = expirationMs;
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO requestDTO) {
         User user = UserRestMapper.toDomain(requestDTO);
-        String token = publicAccessPort.login(user);
-        
-        // The user returned from login has the JWT generated, but we need to get the full user
-        // For now, we'll use the user from the login request with the token
-        LoginResponseDTO response = UserRestMapper.toResponseDTO(token, user, 3600000L);
+        AuthenticationResult result = publicAccessPort.login(user);
+
+        LoginResponseDTO response = UserRestMapper.toResponseDTO(
+                result.getToken(), result.getAuthenticatedUser(), expirationMs / 1000);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
-        publicAccessPort.logout(null);
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
+        publicAccessPort.logout(authenticatedUser);
         return ResponseEntity.noContent().build();
     }
 

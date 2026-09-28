@@ -14,4 +14,17 @@ public final class LoanType extends DomainCatalog {
     private LoanType(String code, String name, String description) {
         super(code, name, description);
     }
+
+    public static LoanType fromCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        return switch (code) {
+            case "PERSONAL" -> PERSONAL;
+            case "MORTGAGE" -> MORTGAGE;
+            case "VEHICLE" -> VEHICLE;
+            case "BUSINESS" -> BUSINESS;
+            default -> throw new IllegalArgumentException("Unknown LoanType code: " + code);
+        };
+    }
 }

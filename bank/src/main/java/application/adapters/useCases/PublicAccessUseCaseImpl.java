@@ -2,11 +2,13 @@ package application.adapters.useCases;
 
 import application.domain.models.NaturalCustomer;
 import application.domain.models.BusinessCustomer;
+import application.domain.models.AuthenticationResult;
 import application.domain.models.User;
 import application.domain.ports.in.PublicAccessPort;
 import application.domain.services.customer.RegisterNaturalCustomerService;
 import application.domain.services.customer.RegisterBusinessCustomerService;
 import application.domain.services.user.LoginService;
+import application.domain.services.user.LogoutService;
 import application.domain.services.user.RegisterCustomerUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,19 +18,23 @@ import org.springframework.stereotype.Service;
 public class PublicAccessUseCaseImpl implements PublicAccessPort {
 
     private final LoginService loginService;
+    private final LogoutService logoutService;
     private final RegisterNaturalCustomerService registerNaturalCustomerService;
     private final RegisterBusinessCustomerService registerBusinessCustomerService;
     private final RegisterCustomerUserService registerCustomerUserService;
 
     @Override
-    public String login(User user) {
+    public AuthenticationResult login(User user) {
         return loginService.login(user);
     }
 
     @Override
     public void logout(User user) {
-        // Logout is handled client-side by discarding the JWT token
-        // Server-side logout would require token blacklisting which is not implemented
+        // Idempotent client-side discard: anonymous calls resolve to a no-op.
+        if (user == null || user.getUserId() == null) {
+            return;
+        }
+        logoutService.logout(user);
     }
 
     @Override

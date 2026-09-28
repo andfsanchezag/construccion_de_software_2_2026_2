@@ -70,8 +70,8 @@ public class LoanRestMapper {
         dto.setCurrency(loan.getCurrency() != null ? loan.getCurrency().getCode() : null);
         dto.setApplicantIdentification(loan.getApplicant() != null ? loan.getApplicant().getIdentification() : null);
         dto.setDestinationAccountNumber(loan.getDestinationAccount() != null ? loan.getDestinationAccount().getIdentifier() : null);
-        dto.setApplicationDate(loan.getApplicationDate());
-        dto.setApprovalDate(loan.getApprovalDate());
+        dto.setApplicationDate(null);
+        dto.setApprovalDate(loan.getApprovalDate() != null ? loan.getApprovalDate().atStartOfDay() : null);
         return dto;
     }
 }

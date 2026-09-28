@@ -33,6 +33,7 @@ public final class UserJpaMapper {
         entity.setAddress(domain.getAddress());
         entity.setCustomerIdentification(
                 domain.getCustomer() != null ? domain.getCustomer().getIdentification() : null);
+        entity.setAuthTokenVersion(domain.getAuthTokenVersion() != null ? domain.getAuthTokenVersion() : 1);
         return entity;
     }
 
@@ -52,6 +53,7 @@ public final class UserJpaMapper {
         domain.setPhoneNumber(entity.getPhoneNumber());
         domain.setAddress(entity.getAddress());
         domain.setCustomer(customer);
+        domain.setAuthTokenVersion(entity.getAuthTokenVersion() != null ? entity.getAuthTokenVersion() : 1);
         return domain;
     }
 

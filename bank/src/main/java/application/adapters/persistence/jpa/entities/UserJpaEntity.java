@@ -61,4 +61,11 @@ public class UserJpaEntity {
     /** User.customer reference. */
     @Column(name = "customer_identification", length = 60)
     private String customerIdentification;
+
+    /**
+     * Version bound to issued JWTs ({@code ver} claim). Bumped on every
+     * security-relevant mutation to invalidate previously issued tokens.
+     */
+    @Column(name = "auth_token_version", nullable = false)
+    private Integer authTokenVersion = 1;
 }

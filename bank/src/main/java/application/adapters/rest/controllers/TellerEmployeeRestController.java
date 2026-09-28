@@ -33,7 +33,7 @@ public class TellerEmployeeRestController {
 
     @GetMapping("/customers/{identification}")
     public ResponseEntity<CustomerResponseDTO> consultCustomer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String identification) {
         
         Customer customer = new NaturalCustomer();
@@ -44,7 +44,7 @@ public class TellerEmployeeRestController {
 
     @PostMapping("/accounts")
     public ResponseEntity<BankAccountResponseDTO> openBankAccount(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @RequestBody BankAccountRequestDTO requestDTO) {
         
         BankAccount account = BankAccountRestMapper.toDomain(requestDTO);
@@ -54,7 +54,7 @@ public class TellerEmployeeRestController {
 
     @GetMapping("/accounts/{accountNumber}")
     public ResponseEntity<BankAccountResponseDTO> consultBankAccount(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber) {
         
         BankAccount account = new BankAccount();
@@ -65,7 +65,7 @@ public class TellerEmployeeRestController {
 
     @GetMapping("/accounts/{accountNumber}/balance")
     public ResponseEntity<AccountBalanceResponseDTO> consultAccountBalance(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber) {
         
         BankAccount account = new BankAccount();
@@ -82,7 +82,7 @@ public class TellerEmployeeRestController {
 
     @PostMapping("/accounts/{accountNumber}/deposits")
     public ResponseEntity<AccountBalanceResponseDTO> depositFunds(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber,
             @Valid @RequestBody DepositRequestDTO requestDTO) {
         
@@ -96,7 +96,7 @@ public class TellerEmployeeRestController {
 
     @PostMapping("/accounts/{accountNumber}/withdrawals")
     public ResponseEntity<AccountBalanceResponseDTO> withdrawFunds(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber,
             @Valid @RequestBody WithdrawalRequestDTO requestDTO) {
         
@@ -110,7 +110,7 @@ public class TellerEmployeeRestController {
 
     @PatchMapping("/accounts/{accountNumber}/block")
     public ResponseEntity<BankAccountResponseDTO> blockBankAccount(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber,
             @Valid @RequestBody BlockAccountRequestDTO requestDTO) {
         
@@ -122,7 +122,7 @@ public class TellerEmployeeRestController {
 
     @PatchMapping("/accounts/{accountNumber}/unblock")
     public ResponseEntity<BankAccountResponseDTO> unblockBankAccount(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber) {
         
         BankAccount account = new BankAccount();
@@ -133,7 +133,7 @@ public class TellerEmployeeRestController {
 
     @PatchMapping("/accounts/{accountNumber}/close")
     public ResponseEntity<BankAccountResponseDTO> closeBankAccount(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber) {
         
         BankAccount account = new BankAccount();

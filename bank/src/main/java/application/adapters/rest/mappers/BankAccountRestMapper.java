@@ -4,7 +4,7 @@ import application.adapters.rest.controllers.TellerEmployeeRestController;
 import application.adapters.rest.dtos.responses.BankAccountResponseDTO;
 import application.adapters.rest.dtos.responses.AccountBalanceResponseDTO;
 import application.domain.models.BankAccount;
-import application.domain.models.Customer;
+import application.domain.models.NaturalCustomer;
 import application.domain.valueobjects.AccountStatus;
 import application.domain.valueobjects.AccountType;
 import application.domain.valueobjects.Currency;
@@ -56,7 +56,7 @@ public class BankAccountRestMapper {
         }
         
         if (dto.getOwnerIdentification() != null) {
-            Customer owner = new Customer();
+            NaturalCustomer owner = new NaturalCustomer();
             owner.setIdentification(dto.getOwnerIdentification());
             account.setOwner(owner);
         }

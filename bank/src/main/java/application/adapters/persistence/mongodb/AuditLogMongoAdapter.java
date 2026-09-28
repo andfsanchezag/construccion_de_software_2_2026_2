@@ -8,6 +8,8 @@ import application.domain.models.BankingProduct;
 import application.domain.models.User;
 import application.domain.ports.out.AuditLogRepositoryPort;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public class AuditLogMongoAdapter implements AuditLogRepositoryPort {
+
+    private static final Logger log = LoggerFactory.getLogger(AuditLogMongoAdapter.class);
 
     private final AuditLogMongoRepository auditLogRepository;
 
@@ -32,6 +36,8 @@ public class AuditLogMongoAdapter implements AuditLogRepositoryPort {
             return null;
         }
         AuditLogDocument saved = auditLogRepository.save(AuditLogMongoMapper.toDocument(auditLog));
+        log.debug("Audit event persisted: type={} auditId={}",
+                saved.getOperationType(), saved.getAuditId());
         return AuditLogMongoMapper.toDomain(saved);
     }
 

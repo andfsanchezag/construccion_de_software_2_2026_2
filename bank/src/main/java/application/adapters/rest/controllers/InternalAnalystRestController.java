@@ -43,7 +43,7 @@ public class InternalAnalystRestController {
 
     @PostMapping("/users/employee")
     public ResponseEntity<UserResponseDTO> registerEmployeeUser(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody RegisterEmployeeUserRequestDTO requestDTO) {
         
         User newEmployee = new User();
@@ -71,7 +71,7 @@ public class InternalAnalystRestController {
 
     @PatchMapping("/customers/{identification}/status")
     public ResponseEntity<CustomerResponseDTO> changeCustomerStatus(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String identification,
             @Valid @RequestBody ChangeCustomerStatusRequestDTO requestDTO) {
         
@@ -85,7 +85,7 @@ public class InternalAnalystRestController {
 
     @PatchMapping("/loans/{loanId}/approve")
     public ResponseEntity<LoanResponseDTO> approveLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId,
             @Valid @RequestBody ApproveLoanRequestDTO requestDTO) {
         
@@ -99,7 +99,7 @@ public class InternalAnalystRestController {
 
     @PatchMapping("/loans/{loanId}/reject")
     public ResponseEntity<LoanResponseDTO> rejectLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId) {
         
         Loan loan = new Loan();
@@ -110,7 +110,7 @@ public class InternalAnalystRestController {
 
     @PostMapping("/loans/{loanId}/disburse")
     public ResponseEntity<LoanResponseDTO> disburseLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId) {
         
         Loan loan = new Loan();
@@ -121,7 +121,7 @@ public class InternalAnalystRestController {
 
     @DeleteMapping("/loans/{loanId}")
     public ResponseEntity<Void> deleteLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId) {
         
         Loan loan = new Loan();
@@ -132,7 +132,7 @@ public class InternalAnalystRestController {
 
     @GetMapping("/audit-logs")
     public ResponseEntity<AuditLogPageResponseDTO> consultAuditLog(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String operationType,
             @RequestParam(defaultValue = "0") int page,
@@ -171,7 +171,7 @@ public class InternalAnalystRestController {
 
     @GetMapping("/operations")
     public ResponseEntity<List<application.adapters.rest.dtos.responses.OperationResponseDTO>> consultAllOperations(
-            @AuthenticationPrincipal User authenticatedUser) {
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         
         List<Operation> operations = internalAnalystPort.consultAllOperations(authenticatedUser);
         return ResponseEntity.ok(operations.stream()

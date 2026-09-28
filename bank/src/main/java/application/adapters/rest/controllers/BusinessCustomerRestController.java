@@ -36,20 +36,20 @@ public class BusinessCustomerRestController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<BusinessCustomerResponseDTO> consultCompanyProfile(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<BusinessCustomerResponseDTO> consultCompanyProfile(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         application.domain.models.BusinessCustomer profile = businessCustomerPort.consultCompanyProfile(authenticatedUser);
         return ResponseEntity.ok(CustomerRestMapper.toBusinessResponseDTO(profile));
     }
 
     @GetMapping("/products")
-    public ResponseEntity<CustomerProductsResponseDTO> consultCompanyProducts(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<CustomerProductsResponseDTO> consultCompanyProducts(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         application.domain.models.CustomerProducts products = businessCustomerPort.consultCompanyProducts(authenticatedUser);
         return ResponseEntity.ok(CustomerProductsRestMapper.toResponseDTO(products));
     }
 
     @PostMapping("/users")
     public ResponseEntity<application.adapters.rest.dtos.responses.UserResponseDTO> registerCompanyUser(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody RegisterCompanyUserRequestDTO requestDTO) {
         
         User newUser = new User();
@@ -76,7 +76,7 @@ public class BusinessCustomerRestController {
     }
 
     @GetMapping("/accounts")
-    public ResponseEntity<List<BankAccountResponseDTO>> consultCompanyAccounts(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<BankAccountResponseDTO>> consultCompanyAccounts(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<application.domain.models.BankAccount> accounts = businessCustomerPort.consultCompanyAccounts(authenticatedUser);
         return ResponseEntity.ok(accounts.stream()
                 .map(BankAccountRestMapper::toResponseDTO)
@@ -85,7 +85,7 @@ public class BusinessCustomerRestController {
 
     @PostMapping("/loans")
     public ResponseEntity<LoanResponseDTO> requestCompanyLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody RequestLoanRequestDTO requestDTO) {
         
         Loan loan = LoanRestMapper.toDomain(requestDTO);
@@ -95,7 +95,7 @@ public class BusinessCustomerRestController {
 
     @PatchMapping("/transfers/{transferId}/approve")
     public ResponseEntity<TransferResponseDTO> approveCompanyTransfer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String transferId) {
         
         Transfer transfer = new Transfer();
@@ -106,7 +106,7 @@ public class BusinessCustomerRestController {
 
     @PatchMapping("/transfers/{transferId}/reject")
     public ResponseEntity<TransferResponseDTO> rejectCompanyTransfer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String transferId,
             @Valid @RequestBody RejectTransferRequestDTO requestDTO) {
         

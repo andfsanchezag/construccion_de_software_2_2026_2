@@ -41,7 +41,7 @@ public class TransferRestMapper {
         dto.setAmount(transfer.getAmount());
         dto.setStatus(transfer.getTransferStatus() != null ? transfer.getTransferStatus().getCode() : null);
         dto.setCreatedAt(transfer.getCreationDate());
-        dto.setExecutedAt(transfer.getExecutionDate());
+        dto.setExecutedAt(transfer.getApprovalDate());
         dto.setApprovedBy(transfer.getApprovedBy() != null ? transfer.getApprovedBy().getUsername() : null);
         dto.setApprovalDate(transfer.getApprovalDate());
         return dto;

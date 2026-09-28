@@ -2,6 +2,7 @@ package application.domain.services.user;
 
 import application.domain.exceptions.InvalidCredentialsException;
 import application.domain.exceptions.DomainException;
+import application.domain.models.AuthenticationResult;
 import application.domain.models.User;
 import application.domain.ports.in.LoginUseCase;
 import application.domain.ports.out.JwtServicePort;
@@ -30,7 +31,7 @@ public class LoginService implements LoginUseCase {
     private final JwtServicePort jwtServicePort;
 
     @Override
-    public String login(User user) {
+    public AuthenticationResult login(User user) {
         if (user == null) {
             throw new InvalidCredentialsException();
         }
@@ -46,7 +47,7 @@ public class LoginService implements LoginUseCase {
 
         validateUserStatus(stored);
 
-        return jwtServicePort.generateToken(stored);
+        return new AuthenticationResult(stored, jwtServicePort.generateToken(stored));
     }
 
     private void validateUserStatus(User stored) {

@@ -45,14 +45,14 @@ public class NaturalCustomerRestController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<CustomerResponseDTO> consultMyProfile(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<CustomerResponseDTO> consultMyProfile(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         Customer customer = naturalCustomerPort.consultMyProfile(authenticatedUser);
         return ResponseEntity.ok(CustomerRestMapper.toResponseDTO(customer));
     }
 
     @PutMapping("/profile")
     public ResponseEntity<CustomerResponseDTO> updateMyProfile(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody UpdateCustomerProfileRequestDTO requestDTO) {
         
         Customer customer = authenticatedUser.getCustomer();
@@ -62,7 +62,7 @@ public class NaturalCustomerRestController {
     }
 
     @GetMapping("/accounts")
-    public ResponseEntity<List<BankAccountResponseDTO>> consultMyAccounts(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<BankAccountResponseDTO>> consultMyAccounts(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<BankAccount> accounts = naturalCustomerPort.consultMyAccounts(authenticatedUser);
         return ResponseEntity.ok(accounts.stream()
                 .map(BankAccountRestMapper::toResponseDTO)
@@ -70,14 +70,14 @@ public class NaturalCustomerRestController {
     }
 
     @GetMapping("/products")
-    public ResponseEntity<CustomerProductsResponseDTO> consultMyProducts(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<CustomerProductsResponseDTO> consultMyProducts(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         application.domain.models.CustomerProducts products = naturalCustomerPort.consultMyProducts(authenticatedUser);
         return ResponseEntity.ok(CustomerProductsRestMapper.toResponseDTO(products));
     }
 
     @GetMapping("/accounts/{accountNumber}/balance")
     public ResponseEntity<AccountBalanceResponseDTO> consultAccountBalance(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String accountNumber) {
         
         BankAccount account = new BankAccount();
@@ -94,7 +94,7 @@ public class NaturalCustomerRestController {
 
     @PostMapping("/loans")
     public ResponseEntity<LoanResponseDTO> requestLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody RequestLoanRequestDTO requestDTO) {
         
         Loan loan = LoanRestMapper.toDomain(requestDTO);
@@ -104,7 +104,7 @@ public class NaturalCustomerRestController {
 
     @GetMapping("/loans/{loanId}")
     public ResponseEntity<LoanResponseDTO> consultLoan(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId) {
         
         Loan loan = new Loan();
@@ -115,7 +115,7 @@ public class NaturalCustomerRestController {
 
     @PostMapping("/loans/{loanId}/payments")
     public ResponseEntity<LoanPaymentResponseDTO> registerLoanPayment(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId,
             @Valid @RequestBody LoanPaymentRequestDTO requestDTO) {
         
@@ -134,7 +134,7 @@ public class NaturalCustomerRestController {
 
     @PostMapping("/transfers")
     public ResponseEntity<TransferResponseDTO> createTransfer(
-            @AuthenticationPrincipal User authenticatedUser,
+            @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody CreateTransferRequestDTO requestDTO) {
         
         Transfer transfer = TransferRestMapper.toDomain(requestDTO);
@@ -143,7 +143,7 @@ public class NaturalCustomerRestController {
     }
 
     @GetMapping("/operations")
-    public ResponseEntity<List<OperationResponseDTO>> consultMyOperations(@AuthenticationPrincipal User authenticatedUser) {
+    public ResponseEntity<List<OperationResponseDTO>> consultMyOperations(@AuthenticationPrincipal(expression = "user") User authenticatedUser) {
         List<Operation> operations = naturalCustomerPort.consultMyOperations(authenticatedUser);
         return ResponseEntity.ok(operations.stream()
                 .map(OperationRestMapper::toResponseDTO)
