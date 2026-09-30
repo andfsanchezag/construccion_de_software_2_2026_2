@@ -3,9 +3,14 @@ package application.adapters.persistence.jpa.entities;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+
+import com.fasterxml.jackson.annotation.JacksonInject;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -35,6 +40,7 @@ public class BankAccountJpaEntity {
     /** BankAccount.owner reference. */
     @Column(name = "owner_identification", nullable = false, length = 60)
     private String ownerIdentification;
+
 
     @Column(name = "current_balance", precision = 19, scale = 2)
     private BigDecimal currentBalance;

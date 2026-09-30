@@ -9,7 +9,7 @@ Este perfil es exclusivamente **Java con Spring Boot, Spring Security, Spring Da
 ## 1. IDENTIFICACIÓN Y CONFIGURACIÓN DEL AGENTE ORQUESTADOR
 
 - **Rol:** Agente Orquestador Principal / Lead Software Architect.
-- **Objetivo:** Diagnosticar el estado del repositorio y ejecutar el siguiente trabajo necesario para implementar el sistema bancario en Java/Spring, cumpliendo los contratos de `SDD_cs2/`. Reanudar el trabajo existente sin regenerar componentes verificados; paralelizar solo tareas independientes.
+- **Objetivo:** Diagnosticar el estado del repositorio y ejecutar el siguiente trabajo necesario para implementar el sistema bancario en Java/Spring, cumpliendo los contratos de `SDD/`. Reanudar el trabajo existente sin regenerar componentes verificados; paralelizar solo tareas independientes.
 - **Entorno Local Auto-Generado:**
   - **Relational DB (SQL):** MySQL en el puerto **`3306`** (Base de datos: `bank_db`, usuario de aplicación: `bank_app`; credenciales por variables de entorno).
   - **NoSQL DB (Audit):** MongoDB local en el puerto **`27017`** (Base de datos: `audit_db`, Colección: `audit_logs`).
@@ -85,17 +85,17 @@ Una vez completada la Fase 1, el Orquestador **lanza en paralelo 3 sub-agentes i
 #### [PARALELO 2A] Sub-Agente Persistencia Relacional (MySQL - 3306)
 **Sub-Agente:** `relational-persistence-agent`
 **Prompt de Invocación:**
-> "Implementa la persistencia relacional exclusivamente con Spring Data JPA/Hibernate en `adapters/persistence/jpa/`: entidades `@Entity`, mappers bidireccionales, interfaces `JpaRepository` y adaptadores que implementen los Output Ports. Sigue `SDD_cs2/Adapters/Persistence-adapters.md`; no introduzcas TypeORM, Prisma ni otro ORM."
+> "Implementa la persistencia relacional exclusivamente con Spring Data JPA/Hibernate en `adapters/persistence/jpa/`: entidades `@Entity`, mappers bidireccionales, interfaces `JpaRepository` y adaptadores que implementen los Output Ports. Sigue `SDD/Adapters/Persistence-adapters.md`; no introduzcas TypeORM, Prisma ni otro ORM."
 
 #### [PARALELO 2B] Sub-Agente Persistencia NoSQL Auditoría (Mongo - 27017)
 **Sub-Agente:** `mongo-persistence-agent`
 **Prompt de Invocación:**
-> "Implementa la persistencia NoSQL de auditoría exclusivamente con Spring Data MongoDB en `adapters/persistence/mongodb/`: documentos `@Document`, mappers, interfaces `MongoRepository` y `AuditLogMongoAdapter` implementando el puerto de auditoría. Usa la base `audit_db` en el servicio MongoDB y sigue `SDD_cs2/Adapters/Persistence-adapters.md`; no introduzcas Mongoose."
+> "Implementa la persistencia NoSQL de auditoría exclusivamente con Spring Data MongoDB en `adapters/persistence/mongodb/`: documentos `@Document`, mappers, interfaces `MongoRepository` y `AuditLogMongoAdapter` implementando el puerto de auditoría. Usa la base `audit_db` en el servicio MongoDB y sigue `SDD/Adapters/Persistence-adapters.md`; no introduzcas Mongoose."
 
 #### [PARALELO 2C] Sub-Agente Puertos de Entrada por Rol (Input Ports)
 **Sub-Agente:** `input-ports-agent`
 **Prompt de Invocación:**
-> "Crea en Java todas las interfaces de Puertos de Entrada por rol en `domain/ports/in/` (`PublicAccessPort`, `NaturalCustomerPort`, `BusinessCustomerPort`, `BusinessOperatorPort`, `BusinessSupervisorPort`, `TellerEmployeePort`, `CommercialEmployeePort`, `InternalAnalystPort`). Usa los tipos de dominio y firmas exactas de `SDD_cs2/Domain/Input-ports.md`; no cambies parámetros ni semántica."
+> "Crea en Java todas las interfaces de Puertos de Entrada por rol en `domain/ports/in/` (`PublicAccessPort`, `NaturalCustomerPort`, `BusinessCustomerPort`, `BusinessOperatorPort`, `BusinessSupervisorPort`, `TellerEmployeePort`, `CommercialEmployeePort`, `InternalAnalystPort`). Usa los tipos de dominio y firmas exactas de `SDD/Domain/Input-ports.md`; no cambies parámetros ni semántica."
 
 ---
 
@@ -105,7 +105,7 @@ Una vez completadas las tareas de la Fase 2, el Orquestador **lanza en paralelo 
 #### [PARALELO 3A] Sub-Agente Servicios de Dominio & Adaptadores de Casos de Uso
 **Sub-Agente:** `domain-services-usecases-agent`
 **Prompt de Invocación:**
-> "Implementa los servicios de dominio Java en `domain/services/` aplicando las reglas, validaciones, precondiciones, flujos y excepciones de `SDD_cs2/Domain/Domain Services.md` y todos los documentos de `SDD_cs2/Domain/services/`. Implementa en `adapters/useCases/` cada puerto de entrada definido en `SDD_cs2/Domain/Input-ports.md`, inyectando los servicios de dominio según `SDD_cs2/Adapters/Use-cases-adapters.md`. Conserva las firmas y la semántica de los contratos."
+> "Implementa los servicios de dominio Java en `domain/services/` aplicando las reglas, validaciones, precondiciones, flujos y excepciones de `SDD/Domain/Domain Services.md` y todos los documentos de `SDD/Domain/services/`. Implementa en `adapters/useCases/` cada puerto de entrada definido en `SDD/Domain/Input-ports.md`, inyectando los servicios de dominio según `SDD/Adapters/Use-cases-adapters.md`. Conserva las firmas y la semántica de los contratos."
 
 #### [PARALELO 3B] Sub-Agente DTOs, Mappers y Controladores REST
 **Sub-Agente:** `rest-controllers-agent`
@@ -113,8 +113,8 @@ Una vez completadas las tareas de la Fase 2, el Orquestador **lanza en paralelo 
 > "Crea en `adapters/rest/`:
 > 1. Todos los Request y Response DTOs para cada caso de uso.
 > 2. Mappers bidireccionales (`RequestDTO` ↔ `Domain Model` ↔ `ResponseDTO`).
-> 3. Controladores Spring MVC en `adapters/rest/controllers/` para todos los contratos de `SDD_cs2/Adapters/Api-rest-endpoints.md`. Inyecta los puertos de entrada por rol y conserva métodos, rutas, DTOs, códigos HTTP y reglas de autorización.
-> 4. Validación Jakarta Bean Validation según `SDD_cs2/Adapters/Rest-validation.md` y manejo global con `@RestControllerAdvice` según `SDD_cs2/Adapters/Global-exception-handler.md`."
+> 3. Controladores Spring MVC en `adapters/rest/controllers/` para todos los contratos de `SDD/Adapters/Api-rest-endpoints.md`. Inyecta los puertos de entrada por rol y conserva métodos, rutas, DTOs, códigos HTTP y reglas de autorización.
+> 4. Validación Jakarta Bean Validation según `SDD/Adapters/Rest-validation.md` y manejo global con `@RestControllerAdvice` según `SDD/Adapters/Global-exception-handler.md`."
 
 ---
 
@@ -125,7 +125,7 @@ Una vez completadas las tareas de la Fase 2, el Orquestador **lanza en paralelo 
 > 1. `JwtProvider` para emitir y validar JWT con `sub` (ID interno inmutable), `jti`, `ver` (`User.authTokenVersion`), `iat` y `exp`; no incluir PII ni snapshots de permisos.
 > 2. `JwtAuthenticationFilter` que verifique el token, cargue por `sub` al usuario actual mediante `UserRepositoryPort`, rechace usuarios inexistentes/inactivos/bloqueados o con `ver` obsoleto y cree un `AuthenticatedUserPrincipal` con el modelo de dominio vigente.
 > 3. Configuración de Spring Security (`SecurityFilterChain`, autenticación JWT sin sesión y autorización por rol) protegiendo las rutas REST según los contratos de seguridad.
-> 4. Aplica CORS, preflight y `X-Request-Id` conforme a `SDD_cs2/Adapters/Rest-security-cors.md`.
+> 4. Aplica CORS, preflight y `X-Request-Id` conforme a `SDD/Adapters/Rest-security-cors.md`.
 > 5. Valida la compilación, pruebas REST de 401/403, CORS/preflight y conectividad con MySQL (3306) y MongoDB (27017)."
 
 ---
@@ -138,7 +138,7 @@ Una vez integrado el sistema, el Orquestador **lanza en paralelo 2 sub-agentes d
 **Prompt de Invocación:**
 > "Genera la suite completa de pruebas unitarias Java para la capa de Dominio en `src/test/java/`:
 > 1. Pruebas para Entidades y Value Objects de Dominio verificando encapsulamiento e invariantes.
-> 2. Pruebas para los Servicios de Dominio (`CustomerServiceTest`, `LoanServiceTest`, `TransferServiceTest`, etc.) utilizando Mockito para aislar los Puertos de Salida. Valida las reglas y excepciones de `SDD_cs2/Domain/services/`."
+> 2. Pruebas para los Servicios de Dominio (`CustomerServiceTest`, `LoanServiceTest`, `TransferServiceTest`, etc.) utilizando Mockito para aislar los Puertos de Salida. Valida las reglas y excepciones de `SDD/Domain/services/`."
 
 #### [PARALELO 5B] Sub-Agente Pruebas Unitarias de Adaptadores y REST
 **Sub-Agente:** `adapters-unit-tests-agent`
@@ -215,7 +215,7 @@ jwt.expiration-ms=${JWT_EXPIRATION_MS:3600000}
 
 El Agente Orquestador declarará el desarrollo como **Exitoso y Completado** cuando se cumplan las siguientes condiciones:
 1. **Compilación y Pruebas Limpias:** Compilación sin errores y **100% de pruebas unitarias ejecutadas con éxito** mediante JUnit 5 y Mockito.
- 2. **Cumplimiento Estricto del SDD de Servicios:** Las implementaciones en `domain/services/` cumplen sin omisiones cada precondición, flujo de validación, registro de operación, auditoría e inmutabilidad estipulados en `SDD_cs2/Domain/Domain Services.md` y `SDD_cs2/Domain/services/`.
+ 2. **Cumplimiento Estricto del SDD de Servicios:** Las implementaciones en `domain/services/` cumplen sin omisiones cada precondición, flujo de validación, registro de operación, auditoría e inmutabilidad estipulados en `SDD/Domain/Domain Services.md` y `SDD/Domain/services/`.
 3. **Auto-creación de Tablas y Colecciones:** Al iniciar la aplicación, el ORM genera automáticamente las tablas en MySQL (3306) y MongoDB (27017) crea la colección de auditoría al insertar el primer evento.
 4. **Desacoplamiento Estricto:** La capa de dominio (`domain/`) no contiene ninguna importación de Spring, JPA, MongoDB, Jackson o HTTP.
 5. **Trazabilidad Completa:** Cada petición REST convierte el `RequestDTO` a `Domain Model`, ejecuta el Caso de Uso inyectando el `User` reconstruido del JWT, el Servicio de Dominio aplica las reglas e invoca los Puertos de Salida, y el Adaptador de Persistencia utiliza su propio `Mapper` y `Repository Entity/Document`.

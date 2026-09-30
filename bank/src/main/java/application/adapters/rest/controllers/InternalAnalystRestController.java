@@ -19,6 +19,7 @@ import application.domain.models.User;
 import application.domain.ports.in.InternalAnalystPort;
 import application.domain.valueobjects.CustomerStatus;
 import application.domain.valueobjects.UserStatus;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -134,7 +135,9 @@ public class InternalAnalystRestController {
     public ResponseEntity<AuditLogPageResponseDTO> consultAuditLog(
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @RequestParam(required = false) String userId,
-            @RequestParam(required = false) String operationType,
+            @RequestParam(required = false)
+            @Pattern(regexp = "ACCOUNT_OPENING|DEPOSIT|WITHDRAWAL|ACCOUNT_BLOCKING|ACCOUNT_UNBLOCKING|ACCOUNT_CLOSING|TRANSFER_CREATION|TRANSFER_APPROVAL|TRANSFER_REJECTION|TRANSFER_EXECUTION|TRANSFER_EXPIRATION|LOAN_APPLICATION|LOAN_APPROVAL|LOAN_REJECTION|LOAN_DISBURSEMENT|LOAN_PAYMENT|LOAN_OVERDUE|LOAN_CANCELLATION|CUSTOMER_REGISTRATION|CUSTOMER_UPDATE|CUSTOMER_STATUS_CHANGE")
+            String operationType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         

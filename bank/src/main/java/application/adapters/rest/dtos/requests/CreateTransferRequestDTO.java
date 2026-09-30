@@ -1,5 +1,7 @@
 package application.adapters.rest.dtos.requests;
 
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -7,8 +9,13 @@ import java.math.BigDecimal;
 @Data
 public class CreateTransferRequestDTO {
 
+    @Size(max = 60)
     private String sourceAccountNumber;
+
+    @Size(max = 60)
     private String destinationAccountNumber;
+
+    @Digits(integer = 17, fraction = 2)
     private BigDecimal amount;
     private String description;
 }

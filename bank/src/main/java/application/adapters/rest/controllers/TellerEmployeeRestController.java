@@ -14,6 +14,8 @@ import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.valueobjects.Money;
 import application.domain.ports.in.TellerEmployeePort;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,7 +47,7 @@ public class TellerEmployeeRestController {
     @PostMapping("/accounts")
     public ResponseEntity<BankAccountResponseDTO> openBankAccount(
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
-            @RequestBody BankAccountRequestDTO requestDTO) {
+            @Valid @RequestBody BankAccountRequestDTO requestDTO) {
         
         BankAccount account = BankAccountRestMapper.toDomain(requestDTO);
         BankAccount opened = tellerEmployeePort.openBankAccount(authenticatedUser, account);
@@ -144,7 +146,12 @@ public class TellerEmployeeRestController {
 
     // Inner DTO for account creation
     public static class BankAccountRequestDTO {
+        @NotBlank
+        @Pattern(regexp = "SAVINGS|CHECKING|BUSINESS")
         private String accountType;
+
+        @NotBlank
+        @Pattern(regexp = "COP|USD|EUR")
         private String currency;
         private BigDecimal initialBalance;
         private String ownerIdentification;

@@ -10,6 +10,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -47,6 +48,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleMalformedBody(
             HttpMessageNotReadableException ex, HttpServletRequest request) {
         return body(HttpStatus.BAD_REQUEST, "Malformed JSON request body.", request);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodValidation(
+            HandlerMethodValidationException ex, HttpServletRequest request) {
+        return body(HttpStatus.BAD_REQUEST, "Invalid request parameter.", request);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

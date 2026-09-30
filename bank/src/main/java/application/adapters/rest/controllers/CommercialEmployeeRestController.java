@@ -16,6 +16,8 @@ import application.domain.models.BankAccount;
 import application.domain.models.User;
 import application.domain.ports.in.CommercialEmployeePort;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -96,7 +98,7 @@ public class CommercialEmployeeRestController {
     @PostMapping("/accounts")
     public ResponseEntity<BankAccountResponseDTO> openBankAccount(
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
-            @RequestBody BankAccountRequestDTO requestDTO) {
+            @Valid @RequestBody BankAccountRequestDTO requestDTO) {
         
         BankAccount account = toDomain(requestDTO);
         BankAccount opened = commercialEmployeePort.openBankAccount(authenticatedUser, account);
@@ -169,7 +171,12 @@ public class CommercialEmployeeRestController {
     }
 
     public static class BankAccountRequestDTO {
+        @NotBlank
+        @Pattern(regexp = "SAVINGS|CHECKING|BUSINESS")
         private String accountType;
+
+        @NotBlank
+        @Pattern(regexp = "COP|USD|EUR")
         private String currency;
         private java.math.BigDecimal initialBalance;
         private String ownerIdentification;
