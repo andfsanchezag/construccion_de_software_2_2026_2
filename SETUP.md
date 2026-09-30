@@ -5,62 +5,68 @@ raíz del repositorio, salvo indicación contraria.
 
 ## 0. Prerrequisitos
 
-1. **JDK 17 o superior** (verificado con Eclipse Temurin 21):
-   `java -version`.
-2. **Docker Desktop** en ejecución: `docker --version` y `docker compose version`.
-3. Puertos libres en el host: **3306** (MySQL), **27017** (MongoDB) y **8080**
+1. **Docker Desktop** en ejecución: `docker --version` y `docker compose version`.
+   Java 17 y Maven se ejecutan dentro del contenedor, así que no es necesario
+   instalarlos en Windows.
+2. Puertos libres en el host: **3306** (MySQL), **27017** (MongoDB) y **8080**
    (app). Cómo comprobarlo:
    ```powershell
    Get-NetTCPConnection -LocalPort 27017,3306,8080 -State Listen |
      Select-Object LocalAddress, LocalPort, OwningProcess
    ```
-   - Si el 8080 está ocupado (frecuente por Docker Desktop u otras apps), usar
-     `SERVER_PORT=8081` al arrancar (ver paso 3).
-   - Si `127.0.0.1:27017` lo ocupa un `mongod` ajeno a Docker (ver
-     [solución de problemas](#6-solución-de-problemas)), apuntar la app al
-     contenedor con `MONGODB_URI=mongodb://[::1]:27017/audit_db`.
+   Si el 8080 está ocupado, establece `$env:HOST_SERVER_PORT="8081"` antes de
+   levantar Compose. Para un `mongod` ajeno en el puerto 27017, detén ese
+   proceso para evitar conflictos.
 
-## 1. Levantar las bases de datos
+## 1. Levantar la aplicación y las bases de datos
 
 ```powershell
-docker compose up -d
+docker compose up -d --build
 docker ps --format "{{.Names}}|{{.Status}}"
+docker compose exec bank-app java -version
+docker compose exec bank-app mvn -version
 docker exec bank-mongo mongosh --quiet --eval "db.runCommand({ping:1})"
 docker exec bank-mysql mysql -uroot -proot_password -e "SELECT VERSION();"
 ```
 
-Esto crea `bank-mysql` (MySQL 8, `bank_db`) y `bank-mongo` (Mongo 6,
-`audit_db`). Credenciales por defecto: usuario `root` / clave `root_password`
-(sobrescribibles con `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`).
+Esto crea MySQL y MongoDB y arranca la app en `http://localhost:8080`. El
+contenedor `bank-app` incluye Java 17 y Maven; el código de `bank/` está montado
+en `/workspace`. Credenciales por defecto de la app: `bank_app` /
+`bank_app_password` (sobrescribibles con `MYSQL_PASSWORD`).
 
 ## 2. Compilar y correr las pruebas
 
 ```powershell
-cd bank
-.\mvnw.cmd test
+docker compose exec bank-app mvn test
 ```
 
-Resultado esperado: `Tests run: 110, Failures: 0, Errors: 0` y
-`BUILD SUCCESS`. La prueba `BankApplicationTests.contextLoads` necesita MySQL
+Resultado esperado: `BUILD SUCCESS`. La prueba `BankApplicationTests.contextLoads` necesita MySQL
 arriba (paso 1); sin base de datos ese test falla por conexión, el resto pasa.
 
-## 3. Empaquetar y arrancar la aplicación
+## 3. Verificar la aplicación en ejecución
 
 ```powershell
-.\mvnw.cmd -q -DskipTests package
-$env:SERVER_PORT="8080"   # u "8081" si el 8080 está ocupado
-java -jar target\bank-0.0.1-SNAPSHOT.jar
+docker compose logs -f bank-app
 ```
 
-Al arrancar, Hibernate crea/actualiza las tablas en `bank_db` y Mongo queda
-listo para crear `audit_logs` con el primer evento. Verificar salud:
+La app se inicia con `mvn spring-boot:run` dentro del contenedor. Hibernate
+crea/actualiza las tablas en `bank_db` y Mongo queda listo para crear
+`audit_logs` con el primer evento. Verificar salud:
 
 ```powershell
 curl.exe -s http://127.0.0.1:8080/actuator/health
 # {"groups":["liveness","readiness"],"status":"UP"}
 ```
 
-> Variables opcionales en la misma sesión antes de `java -jar`:
+Los comandos Java y Maven también están disponibles en el contenedor:
+
+```powershell
+docker compose exec bank-app java -version
+docker compose exec bank-app mvn -version
+docker compose exec bank-app mvn -DskipTests package
+```
+
+> Variables opcionales en la misma sesión antes de `docker compose up`:
 > `$env:DB_URL`, `$env:DB_USERNAME`, `$env:DB_PASSWORD`, `$env:MONGODB_URI`,
 > `$env:JWT_SECRET`, `$env:FRONTEND_ORIGIN`. Ver tabla en `README.md`.
 
@@ -109,15 +115,14 @@ curl.exe -s http://127.0.0.1:8080/actuator/health
 ## 5. Apagar todo
 
 ```powershell
-# Detener la app: Ctrl+C en su terminal
-docker compose stop        # o `docker compose down` para además borrar contenedores (los volúmenes con datos se conservan)
+docker compose down        # los volúmenes con datos se conservan
 ```
 
 ## 6. Solución de problemas
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| `Port 8080 was already in use` | Otro proceso ocupa el puerto | Arrancar con `$env:SERVER_PORT="8081"` |
+| `Port 8080 was already in use` | Otro proceso ocupa el puerto | Ejecutar `$env:HOST_SERVER_PORT="8081"` antes de `docker compose up -d --build` |
 | `Tests ... BankApplicationTests ... Communications link failure` | MySQL apagado | `docker compose up -d` y repetir |
 | Auditoría no aparece en `bank-mongo` | Otro `mongod` nativo ocupa `127.0.0.1:27017` | Arrancar con `$env:MONGODB_URI="mongodb://[::1]:27017/audit_db"` o detener el proceso ajeno (requiere admin) |
 | `400 Requesting user must be provided` en registro público | Versión vieja del código | Debe permitir auto-registro; reconstruir con `.\mvnw.cmd -q -DskipTests package` |

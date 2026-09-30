@@ -12,20 +12,21 @@ invalidación de sesiones, persistencia relacional en **MySQL** y auditoría en
 
 | Capa | Tecnología |
 |---|---|
-| Lenguaje / Build | Java 17, Maven (wrapper `bank/mvnw.cmd`) |
+| Lenguaje / Build | Java 17, Maven (wrapper `bank/mvnw.cmd` o contenedor Docker) |
 | Framework | Spring Boot 4.1.0, Spring MVC, Spring Security (JWT stateless, BCrypt) |
 | Persistencia relacional | Spring Data JPA / Hibernate → MySQL 8 (`bank_db`, puerto 3306, DDL automático) |
 | Auditoría NoSQL | Spring Data MongoDB → MongoDB (`audit_db.audit_logs`, puerto 27017) |
 | JWT | JJWT 0.12.6 (`sub`, `jti`, `ver`, `iat`, `exp`; sin PII) |
 | Validación / errores | Jakarta Bean Validation, `@RestControllerAdvice` con envelope + `X-Request-Id` |
 | Observabilidad | Spring Boot Actuator (`/actuator/health`) |
-| Pruebas | JUnit 5 — **110 tests en verde** (`.\mvnw.cmd test` en `bank/`) |
+| Pruebas | JUnit 5 — `docker compose exec bank-app mvn test` |
 
 ## Estructura del repositorio
 
 ```text
 .
 ├── bank/                  # Aplicación Spring Boot (código + tests + resources)
+│   ├── Dockerfile          # JDK 17 + Maven para ejecutar la app en contenedor
 │   └── src/main/java/application/
 │       ├── domain/        # Núcleo puro: models, valueobjects, enums, exceptions,
 │       │                  #   ports/in (8 roles + acceso público), ports/out, services
@@ -34,7 +35,7 @@ invalidación de sesiones, persistencia relacional en **MySQL** y auditoría en
 │       └── infrastructure/ # security (JWT, BCrypt, CORS), config, notification
 ├── SDD/                   # Especificación: enunciados, arquitectura, dominio,
 │                          #   adapters y el prompt del agente orquestador
-├── docker-compose.yml     # MySQL 3306 + MongoDB 27017 locales
+├── docker-compose.yml     # App + MySQL 3306 + MongoDB 27017
 ├── SETUP.md               # Guía paso a paso para ejecutar el proyecto
 └── LICENSE                # MIT
 ```

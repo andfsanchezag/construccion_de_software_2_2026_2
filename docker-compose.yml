@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql-db:
     image: mysql:8.0
@@ -14,6 +12,11 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   mongo-db:
     image: mongo:6.0
@@ -23,7 +26,39 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  bank-app:
+    build:
+      context: ./bank
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ./bank:/workspace
+      - maven_cache:/root/.m2
+    ports:
+      - "${HOST_SERVER_PORT:-8080}:8080"
+    environment:
+      DB_URL: "${DB_URL:-jdbc:mysql://mysql-db:3306/bank_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}"
+      DB_USERNAME: ${DB_USERNAME:-bank_app}
+      DB_PASSWORD: ${DB_PASSWORD:-${MYSQL_PASSWORD:-bank_app_password}}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo-db:27017/audit_db}
+      JWT_SECRET: ${JWT_SECRET:-9a6f8b12c34d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      SERVER_PORT: 8080
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      mongo-db:
+        condition: service_healthy
+    command: ["mvn", "-B", "spring-boot:run"]
 
 volumes:
   mysql_data:
   mongo_data:
+  maven_cache:
