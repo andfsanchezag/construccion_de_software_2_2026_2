@@ -47,7 +47,7 @@ services:
       DB_USERNAME: ${DB_USERNAME:-bank_app}
       DB_PASSWORD: ${DB_PASSWORD:-${MYSQL_PASSWORD:-bank_app_password}}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongo-db:27017/audit_db}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before running docker compose (no insecure default is provided)}
+      JWT_SECRET: ${JWT_SECRET:-TDEATDEATDEATDEATDEATDEATDEATDEA}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       SERVER_PORT: 8080
