@@ -1,3 +1,8 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "chat.tools.terminal.autoApprove": {
+        "mvn -q test": true,
+        "git stash": true,
+        "mvn -q -Dtest=BankApplicationTests test": true
+    }
 }

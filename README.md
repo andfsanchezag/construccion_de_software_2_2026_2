@@ -62,7 +62,8 @@ invalidación de sesiones, persistencia relacional en **MySQL** y auditoría en
 | `DB_URL` | `jdbc:mysql://localhost:3306/bank_db?...` | JDBC MySQL (en Compose: `mysql-db`) |
 | `DB_USERNAME` / `DB_PASSWORD` | `root` / `root_password` | Credenciales MySQL |
 | `MONGODB_URI` | `mongodb://localhost:27017/audit_db` | URI Mongo (en Compose: `mongo-db`) |
-| `JWT_SECRET` / `JWT_EXPIRATION_MS` | dev / `3600000` | Firma y vigencia del JWT |
+| `JWT_SECRET` | **requerida, sin default** | Clave HMAC de firma del JWT (debe definirse antes de levantar la app; no hay valor de respaldo por seguridad) |
+| `JWT_EXPIRATION_MS` | `3600000` | Vigencia del JWT en milisegundos |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | Origen CORS permitido |
 | `SERVER_PORT` | `8080` | Puerto HTTP de la app |
 

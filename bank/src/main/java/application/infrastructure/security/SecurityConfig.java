@@ -38,6 +38,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/v1/natural-customer/**").hasRole("NATURAL_CUSTOMER")
+                .requestMatchers("/api/v1/business-customer/**").hasRole("BUSINESS_CUSTOMER")
+                .requestMatchers("/api/v1/teller/**").hasRole("TELLER_EMPLOYEE")
+                .requestMatchers("/api/v1/commercial/**").hasRole("COMMERCIAL_EMPLOYEE")
+                .requestMatchers("/api/v1/business-operator/**").hasRole("BUSINESS_OPERATOR")
+                .requestMatchers("/api/v1/business-supervisor/**").hasRole("BUSINESS_SUPERVISOR")
+                .requestMatchers("/api/v1/internal-analyst/**").hasRole("INTERNAL_ANALYST")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

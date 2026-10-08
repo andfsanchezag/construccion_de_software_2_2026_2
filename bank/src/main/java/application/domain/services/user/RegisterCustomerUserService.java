@@ -13,7 +13,6 @@ import application.domain.ports.out.PasswordServicePort;
 import application.domain.ports.out.UserRepositoryPort;
 import application.domain.valueobjects.SystemRole;
 import application.domain.valueobjects.UserStatus;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -38,8 +37,10 @@ public class RegisterCustomerUserService implements RegisterCustomerUserUseCase 
 
     @Override
     public User registerCustomerUser(User requestingUser, User user) {
-        validateCustomerAssociation(user);
-        validateRoleCompatibility(user);
+        Customer resolvedCustomer = resolveCustomerAssociation(user);
+        validateRoleCompatibility(user.getRole(), resolvedCustomer);
+        applyCustomerPersonData(user, resolvedCustomer);
+        user.ensureRegistrationDataComplete();
         validateUsernameUniqueness(user);
         String securePassword = passwordServicePort.encrypt(user.getPassword());
         user.setPassword(securePassword);
@@ -47,22 +48,18 @@ public class RegisterCustomerUserService implements RegisterCustomerUserUseCase 
         return userRepositoryPort.save(user);
     }
 
-    private void validateCustomerAssociation(User user) {
+    private Customer resolveCustomerAssociation(User user) {
         if (user == null) {
             throw new InvalidUserException("User must be provided.");
         }
         if (user.getCustomer() == null) {
             throw new InvalidUserException("A customer association is required for customer user registration.");
         }
-        Optional<Customer> customerOpt = customerRepositoryPort.findByIdentification(user.getCustomer());
-        if (customerOpt.isEmpty()) {
-            throw new EntityNotFoundException("Associated customer");
-        }
+        return customerRepositoryPort.findByIdentification(user.getCustomer())
+                .orElseThrow(() -> new EntityNotFoundException("Associated customer"));
     }
 
-    private void validateRoleCompatibility(User user) {
-        SystemRole role = user.getRole();
-        Customer customer = user.getCustomer();
+    private void validateRoleCompatibility(SystemRole role, Customer customer) {
         boolean compatible =
                 (customer instanceof NaturalCustomer && SystemRole.NATURAL_CUSTOMER.equals(role))
                         || (customer instanceof BusinessCustomer && SystemRole.BUSINESS_CUSTOMER.equals(role));
@@ -71,6 +68,22 @@ public class RegisterCustomerUserService implements RegisterCustomerUserUseCase 
                     "Role " + (role == null ? "UNDEFINED" : role.getCode())
                             + " is not compatible with the associated customer.");
         }
+    }
+
+    /**
+     * Guarantees the User row is always fully populated by mirroring the
+     * authoritative Customer's Person data instead of trusting the API caller
+     * to resupply it (academic completeness guarantee), and replaces the
+     * caller-supplied customer reference stub with the fully resolved
+     * Customer (correct subtype and data) resolved from persistence.
+     */
+    private void applyCustomerPersonData(User user, Customer customer) {
+        user.setIdentification(customer.getIdentification());
+        user.setName(customer.getName());
+        user.setEmail(customer.getEmail());
+        user.setPhoneNumber(customer.getPhoneNumber());
+        user.setAddress(customer.getAddress());
+        user.setCustomer(customer);
     }
 
     private void validateUsernameUniqueness(User user) {

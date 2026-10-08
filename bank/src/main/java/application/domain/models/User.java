@@ -1,5 +1,6 @@
 package application.domain.models;
 
+import application.domain.exceptions.InvalidUserException;
 import application.domain.exceptions.InvalidUserStatusException;
 import application.domain.valueobjects.UserStatus;
 import lombok.Getter;
@@ -72,5 +73,34 @@ public class User extends Person {
 
     private String statusCode() {
         return status == null ? "UNKNOWN" : status.getCode();
+    }
+
+    /**
+     * Guarantees that a User row is never persisted with missing data
+     * (academic completeness guarantee: every user registered in the
+     * {@code users} table must have all of its fields populated, since claims
+     * reconstructed from the JWT come entirely from these attributes).
+     *
+     * <p>{@code status} and {@code authTokenVersion} are intentionally
+     * excluded: they are always assigned internally by the registration flow,
+     * never supplied by the caller.
+     */
+    public void ensureRegistrationDataComplete() {
+        requireNonBlank(username, "username");
+        requireNonBlank(password, "password");
+        requireNonBlank(getIdentification(), "identification");
+        requireNonBlank(getName(), "name");
+        requireNonBlank(getEmail(), "email");
+        requireNonBlank(getPhoneNumber(), "phoneNumber");
+        requireNonBlank(getAddress(), "address");
+        if (getRole() == null) {
+            throw new InvalidUserException("User role must be provided for registration.");
+        }
+    }
+
+    private void requireNonBlank(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidUserException("User " + field + " must be provided for registration.");
+        }
     }
 }

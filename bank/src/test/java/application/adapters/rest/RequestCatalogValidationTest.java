@@ -30,6 +30,13 @@ class RequestCatalogValidationTest {
             employeeRequest.setRole("UNKNOWN_ROLE");
             assertFalse(validator.validate(employeeRequest).isEmpty());
             employeeRequest.setRole("TELLER_EMPLOYEE");
+            employeeRequest.setUsername("teller1");
+            employeeRequest.setPassword("SecurePass123");
+            employeeRequest.setEmail("teller1@bank.com");
+            employeeRequest.setIdentification("1000000001");
+            employeeRequest.setName("Teller One");
+            employeeRequest.setPhoneNumber("3000000001");
+            employeeRequest.setAddress("Main St 123");
             assertTrue(validator.validate(employeeRequest).isEmpty());
 
             ChangeCustomerStatusRequestDTO statusRequest = new ChangeCustomerStatusRequestDTO();

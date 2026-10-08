@@ -58,6 +58,8 @@ public class InternalAnalystRestController {
         
         newEmployee.setIdentification(requestDTO.getIdentification());
         newEmployee.setName(requestDTO.getName());
+        newEmployee.setPhoneNumber(requestDTO.getPhoneNumber());
+        newEmployee.setAddress(requestDTO.getAddress());
         
         User created = internalAnalystPort.registerEmployeeUser(authenticatedUser, newEmployee);
         

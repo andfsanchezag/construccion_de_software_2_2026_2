@@ -66,9 +66,12 @@ docker compose exec bank-app mvn -version
 docker compose exec bank-app mvn -DskipTests package
 ```
 
-> Variables opcionales en la misma sesión antes de `docker compose up`:
+> `$env:JWT_SECRET` es **obligatoria**: define una clave aleatoria larga en la
+> misma sesión antes de `docker compose up` (por ejemplo
+> `$env:JWT_SECRET = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | ForEach-Object {[char]$_})`),
+> ya no existe un valor por defecto. Variables opcionales en la misma sesión:
 > `$env:DB_URL`, `$env:DB_USERNAME`, `$env:DB_PASSWORD`, `$env:MONGODB_URI`,
-> `$env:JWT_SECRET`, `$env:FRONTEND_ORIGIN`. Ver tabla en `README.md`.
+> `$env:FRONTEND_ORIGIN`. Ver tabla en `README.md`.
 
 ## 4. Prueba de humo end-to-end (registro → login → uso → logout)
 

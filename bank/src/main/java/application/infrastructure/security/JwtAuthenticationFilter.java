@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,7 +19,6 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
-    private final BankUserDetailsService userDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -31,16 +29,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && jwtProvider.validateToken(token)) {
             Integer tokenVersion = jwtProvider.extractTokenVersion(token);
-            String subject = subjectOf(token);
 
             try {
-                AuthenticatedUserPrincipal principal =
-                        (AuthenticatedUserPrincipal) userDetailsService.loadUserByUsername(subject);
-                User current = principal.getUser();
+                // Academic design: the User (role, status, customer, PII) is
+                // rebuilt entirely from the token claims, with no database
+                // round trip. See JwtProvider for the accepted trade-offs.
+                User current = jwtProvider.reconstructUser(token);
+                AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(current);
 
-                // Reject inactive/blocked users and obsolete token versions.
-                // Roles/permissions always come from the freshly loaded Domain
-                // Model, never from JWT claims.
+                // Reject inactive/blocked users (per the token's own status
+                // claim) and obsolete token versions.
                 if (tokenVersion != null && isUsable(current, tokenVersion)) {
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
@@ -49,20 +47,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 } else {
                     SecurityContextHolder.clearContext();
                 }
-            } catch (UsernameNotFoundException e) {
+            } catch (Exception e) {
                 SecurityContextHolder.clearContext();
             }
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private String subjectOf(String token) {
-        try {
-            return jwtProvider.getClaims(token).getSubject();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private boolean isUsable(User stored, Integer tokenVersion) {

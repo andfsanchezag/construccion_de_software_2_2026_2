@@ -11,13 +11,14 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /**
- * Spring Security principal wrapping the authoritative {@link User} Domain
- * Model loaded on each request.
+ * Spring Security principal wrapping the {@link User} rebuilt from the JWT
+ * claims on each request (see {@link JwtProvider#reconstructUser(String)}).
  *
  * <p>Spring Security types remain outside {@code domain/}: this adapter is the
  * only place where the domain user meets Spring's authentication model. Role
- * and customer association always come from the freshly loaded model, never
- * from JWT claims.
+ * and customer association come entirely from the signed JWT claims (academic
+ * design: no per-request database lookup), so they reflect the state at
+ * token-issuance time, not necessarily the latest persisted state.
  */
 @Getter
 @RequiredArgsConstructor

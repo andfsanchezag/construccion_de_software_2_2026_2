@@ -30,6 +30,7 @@ public class RegisterEmployeeUserService implements RegisterEmployeeUserUseCase 
     @Override
     public User registerEmployeeUser(User requestingUser, User employee) {
         validateInput(employee);
+        employee.ensureRegistrationDataComplete();
         validateInternalAnalystAuthorizationService.execute(requestingUser);
         validateEmployeeRole(employee);
         validateUsernameUniqueness(employee);
