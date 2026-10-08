@@ -30,6 +30,8 @@ public interface NaturalCustomerPort {
 
     Loan registerLoanPayment(User user, Loan loan, Money amount);
 
+    Loan registerLoanPayment(User user, Loan loan, BankAccount sourceAccount, Money amount);
+
     Transfer createTransfer(User user, Transfer transfer);
 
     Transfer executeTransfer(User user, Transfer transfer);

@@ -7,7 +7,6 @@ import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.DepositFundsUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
@@ -27,14 +26,13 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class DepositFundsService implements DepositFundsUseCase {
+public class DepositFundsService {
 
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final CustomerRepositoryPort customerRepositoryPort;
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public BankAccount deposit(User requestingUser, Customer customer, BankAccount account, Money amount) {
         validateUser(requestingUser);
 

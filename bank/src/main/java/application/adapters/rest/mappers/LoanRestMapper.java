@@ -7,15 +7,20 @@ import application.adapters.rest.dtos.responses.LoanResponseDTO;
 import application.domain.models.Loan;
 import application.domain.models.Customer;
 import application.domain.models.BankAccount;
+import application.domain.valueobjects.Currency;
 import application.domain.valueobjects.LoanType;
 import application.domain.valueobjects.LoanStatus;
 import lombok.experimental.UtilityClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @UtilityClass
 public class LoanRestMapper {
+
+    private final Logger log = LoggerFactory.getLogger(LoanRestMapper.class);
 
     public Loan toDomain(RequestLoanRequestDTO dto) {
         Loan loan = new Loan();
@@ -24,6 +29,7 @@ public class LoanRestMapper {
         }
         loan.setRequestedAmount(dto.getRequestedAmount());
         loan.setTermInMonths(dto.getTermInMonths());
+        loan.setCurrency(resolveCurrency(dto.getCurrency(), "RequestLoanRequestDTO"));
         
         if (dto.getDestinationAccountNumber() != null) {
             BankAccount destAccount = new BankAccount();
@@ -40,6 +46,7 @@ public class LoanRestMapper {
         }
         loan.setRequestedAmount(dto.getRequestedAmount());
         loan.setTermInMonths(dto.getTermInMonths());
+        loan.setCurrency(resolveCurrency(dto.getCurrency(), "CommercialRequestLoanRequestDTO"));
         
         if (dto.getDestinationAccountNumber() != null) {
             BankAccount destAccount = new BankAccount();
@@ -52,6 +59,21 @@ public class LoanRestMapper {
     public void applyApproval(Loan loan, ApproveLoanRequestDTO dto) {
         loan.setApprovedAmount(dto.getApprovedAmount());
         loan.setInterestRate(dto.getInterestRate());
+    }
+
+    private Currency resolveCurrency(String code, String source) {
+        if (code == null || code.isBlank()) {
+            log.info("Mapeo de préstamo desde {} sin 'currency': se asume COP por defecto "
+                    + "(evita InvalidLoanException 'Loan currency must be provided').", source);
+            return Currency.COP;
+        }
+        try {
+            return Currency.fromCode(code);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Mapeo de préstamo desde {} con currency desconocida '{}': se asume COP. Detalle: {}",
+                    source, code, ex.getMessage());
+            return Currency.COP;
+        }
     }
 
     public LoanResponseDTO toResponseDTO(Loan loan) {

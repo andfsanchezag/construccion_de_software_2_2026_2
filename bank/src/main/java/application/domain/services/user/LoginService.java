@@ -4,7 +4,6 @@ import application.domain.exceptions.InvalidCredentialsException;
 import application.domain.exceptions.DomainException;
 import application.domain.models.AuthenticationResult;
 import application.domain.models.User;
-import application.domain.ports.in.LoginUseCase;
 import application.domain.ports.out.JwtServicePort;
 import application.domain.ports.out.PasswordServicePort;
 import application.domain.ports.out.UserRepositoryPort;
@@ -24,13 +23,12 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class LoginService implements LoginUseCase {
+public class LoginService {
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordServicePort passwordServicePort;
     private final JwtServicePort jwtServicePort;
 
-    @Override
     public AuthenticationResult login(User user) {
         if (user == null) {
             throw new InvalidCredentialsException();

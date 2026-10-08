@@ -4,7 +4,6 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.CancelLoanUseCase;
 import application.domain.ports.out.LoanRepositoryPort;
 import application.domain.services.authorization.AuthorizeLoanOperationService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -32,13 +31,12 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class CancelLoanService implements CancelLoanUseCase {
+public class CancelLoanService {
 
     private final LoanRepositoryPort loanRepositoryPort;
     private final AuthorizeLoanOperationService authorizeLoanOperationService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public Loan cancel(User user, Loan loan) {
         Loan stored = requireAuthoritativeLoan(loan);
         authorizeLoanOperationService.execute(user, stored);

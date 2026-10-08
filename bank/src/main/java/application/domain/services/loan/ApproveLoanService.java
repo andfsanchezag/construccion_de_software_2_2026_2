@@ -15,7 +15,6 @@ import application.domain.models.Customer;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.ApproveLoanUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.LoanRepositoryPort;
@@ -44,7 +43,7 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class ApproveLoanService implements ApproveLoanUseCase {
+public class ApproveLoanService {
 
     private final LoanRepositoryPort loanRepositoryPort;
     private final CustomerRepositoryPort customerRepositoryPort;
@@ -52,7 +51,6 @@ public class ApproveLoanService implements ApproveLoanUseCase {
     private final AuthorizeLoanApprovalService authorizeLoanApprovalService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public Loan approve(User user, Loan loan) {
         authorizeLoanApprovalService.execute(user);
         Loan stored = requireAuthoritativeLoan(loan);

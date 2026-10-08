@@ -15,7 +15,6 @@ import application.domain.models.Customer;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.RequestLoanUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.LoanRepositoryPort;
@@ -26,6 +25,8 @@ import application.domain.valueobjects.CustomerStatus;
 import application.domain.valueobjects.OperationType;
 import application.domain.valueobjects.SystemRole;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -45,7 +46,9 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class RequestLoanService implements RequestLoanUseCase {
+public class RequestLoanService {
+
+    private static final Logger log = LoggerFactory.getLogger(RequestLoanService.class);
 
     private final LoanRepositoryPort loanRepositoryPort;
     private final CustomerRepositoryPort customerRepositoryPort;
@@ -53,7 +56,6 @@ public class RequestLoanService implements RequestLoanUseCase {
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public Loan request(User user, Loan loan) {
         if (loan == null) {
             throw new InvalidLoanException("Loan must be provided.");
@@ -85,9 +87,14 @@ public class RequestLoanService implements RequestLoanUseCase {
     }
 
     private Customer requireActiveApplicant(Loan loan) {
+        String applicantId = loan.getApplicant() != null ? loan.getApplicant().getIdentification() : null;
         Optional<Customer> applicantOpt = customerRepositoryPort.findByIdentification(loan.getApplicant());
         if (applicantOpt.isEmpty()) {
-            throw new EntityNotFoundException("Loan applicant");
+            log.warn("Solicitante de préstamo no encontrado: applicantIdentification='{}'. "
+                    + "El customer del token no existe en la tabla 'customers'. "
+                    + "Haga login de nuevo tras ejecutar las semillas (Oliver/Aria) o registre el customer.",
+                    applicantId);
+            throw new EntityNotFoundException("Loan applicant", applicantId);
         }
         Customer applicant = applicantOpt.get();
         if (!CustomerStatus.ACTIVE.equals(applicant.getStatus())) {
@@ -117,9 +124,13 @@ public class RequestLoanService implements RequestLoanUseCase {
         if (loan.getDestinationAccount() == null) {
             return;
         }
+        String destId = loan.getDestinationAccount().getIdentifier();
         Optional<BankAccount> accountOpt = bankAccountRepositoryPort.findByIdentifier(loan.getDestinationAccount());
         if (accountOpt.isEmpty()) {
-            throw new EntityNotFoundException("Destination account");
+            log.warn("Cuenta destino del préstamo no encontrada: destinationAccount='{}' applicant='{}'. "
+                    + "Verifique que la cuenta exista en 'bank_accounts' y pertenezca al solicitante.",
+                    destId, applicant.getIdentification());
+            throw new EntityNotFoundException("Destination account", destId);
         }
         BankAccount account = accountOpt.get();
         if (!AccountStatus.ACTIVE.equals(account.getAccountStatus())) {

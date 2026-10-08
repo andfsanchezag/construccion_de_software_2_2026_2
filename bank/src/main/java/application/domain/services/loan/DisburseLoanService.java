@@ -11,7 +11,6 @@ import application.domain.models.BankAccount;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.DisburseLoanUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.LoanRepositoryPort;
 import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
@@ -38,14 +37,13 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class DisburseLoanService implements DisburseLoanUseCase {
+public class DisburseLoanService {
 
     private final LoanRepositoryPort loanRepositoryPort;
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public Loan disburse(User user, Loan loan) {
         validateRequestingUser(user);
         Loan stored = requireAuthoritativeLoan(loan);

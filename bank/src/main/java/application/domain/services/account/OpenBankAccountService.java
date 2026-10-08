@@ -8,7 +8,6 @@ import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.OpenBankAccountUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
@@ -26,14 +25,13 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class OpenBankAccountService implements OpenBankAccountUseCase {
+public class OpenBankAccountService {
 
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final CustomerRepositoryPort customerRepositoryPort;
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public BankAccount open(User requestingUser, BankAccount account) {
         validateUser(requestingUser);
         validateAccountFields(account);

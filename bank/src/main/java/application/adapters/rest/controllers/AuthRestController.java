@@ -75,8 +75,18 @@ public class AuthRestController {
             user.setRole(mapSystemRole(requestDTO.getRole()));
         }
         
-        // The customer identification needs to be set on the user
-        application.domain.models.Customer customer = new application.domain.models.NaturalCustomer();
+        // El stub del customer debe coincidir con el rol: Natural para NATURAL_CUSTOMER,
+        // Business para BUSINESS_CUSTOMER/OPERATOR/SUPERVISOR. El servicio resuelve el
+        // customer real desde base de datos y valida la compatibilidad.
+        application.domain.models.Customer customer;
+        if (user.getRole() != null
+                && (user.getRole().equals(application.domain.valueobjects.SystemRole.BUSINESS_CUSTOMER)
+                    || user.getRole().equals(application.domain.valueobjects.SystemRole.BUSINESS_OPERATOR)
+                    || user.getRole().equals(application.domain.valueobjects.SystemRole.BUSINESS_SUPERVISOR))) {
+            customer = new application.domain.models.BusinessCustomer();
+        } else {
+            customer = new application.domain.models.NaturalCustomer();
+        }
         customer.setIdentification(requestDTO.getCustomerIdentification());
         user.setCustomer(customer);
         

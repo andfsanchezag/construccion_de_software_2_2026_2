@@ -24,6 +24,8 @@ class RequestCatalogValidationTest {
             loanRequest.setLoanType("personal");
             assertFalse(validator.validate(loanRequest).isEmpty());
             loanRequest.setLoanType("PERSONAL");
+            loanRequest.setRequestedAmount(new java.math.BigDecimal("1000000"));
+            loanRequest.setTermInMonths(12);
             assertTrue(validator.validate(loanRequest).isEmpty());
 
             RegisterEmployeeUserRequestDTO employeeRequest = new RegisterEmployeeUserRequestDTO();

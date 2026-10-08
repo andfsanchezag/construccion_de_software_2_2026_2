@@ -27,6 +27,8 @@ import application.domain.models.User;
 import application.domain.valueobjects.Money;
 import application.domain.ports.in.NaturalCustomerPort;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,6 +40,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/natural-customer")
 public class NaturalCustomerRestController {
+
+    private static final Logger log = LoggerFactory.getLogger(NaturalCustomerRestController.class);
 
     private final NaturalCustomerPort naturalCustomerPort;
 
@@ -56,6 +60,14 @@ public class NaturalCustomerRestController {
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @Valid @RequestBody UpdateCustomerProfileRequestDTO requestDTO) {
         
+        if (authenticatedUser == null || authenticatedUser.getCustomer() == null
+                || authenticatedUser.getCustomer().getIdentification() == null) {
+            log.warn("Actualización de perfil rechazada: token sin customer asociado. Usuario='{}'. "
+                    + "Haga login de nuevo con un usuario NATURAL_CUSTOMER.",
+                    authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN");
+            throw new application.domain.exceptions.UnauthorizedOperationException(
+                    "Authenticated natural customer with associated customer is required.");
+        }
         Customer customer = authenticatedUser.getCustomer();
         CustomerRestMapper.updateDomainFromDTO(requestDTO, customer);
         Customer updated = naturalCustomerPort.updateMyProfile(authenticatedUser, customer);
@@ -93,28 +105,50 @@ public class NaturalCustomerRestController {
         return ResponseEntity.ok(BankAccountRestMapper.toBalanceResponseDTO(found));
     }
 
-    @PostMapping("/loans")
+    @PostMapping({"/loans", "/loan"})
     public ResponseEntity<LoanResponseDTO> requestLoan(
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
-            @Valid @RequestBody RequestLoanRequestDTO requestDTO) {
-        
+            @Valid @RequestBody RequestLoanRequestDTO requestDTO,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+
+        if (httpRequest != null && httpRequest.getRequestURI() != null
+                && httpRequest.getRequestURI().endsWith("/loan")) {
+            log.warn("Se usó el alias singular POST /api/v1/natural-customer/loan; la ruta canónica es "
+                    + "POST /api/v1/natural-customer/loans. Usuario del token: identification='{}' username='{}'.",
+                    authenticatedUser != null && authenticatedUser.getCustomer() != null
+                            ? authenticatedUser.getCustomer().getIdentification() : "UNKNOWN",
+                    authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN");
+        }
+        log.info("Solicitud de préstamo: usuario='{}' customerIdentification='{}' loanType='{}' amount='{}' term='{}' destAccount='{}' currency='{}'",
+                authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN",
+                authenticatedUser != null && authenticatedUser.getCustomer() != null
+                        ? authenticatedUser.getCustomer().getIdentification() : "UNKNOWN",
+                requestDTO.getLoanType(), requestDTO.getRequestedAmount(),
+                requestDTO.getTermInMonths(), requestDTO.getDestinationAccountNumber(),
+                requestDTO.getCurrency());
         Loan loan = LoanRestMapper.toDomain(requestDTO);
         Loan requested = naturalCustomerPort.requestLoan(authenticatedUser, loan);
+        log.info("Préstamo creado: loanId='{}' applicant='{}' status='{}'",
+                requested.getIdentifier(),
+                requested.getApplicant() != null ? requested.getApplicant().getIdentification() : "UNKNOWN",
+                requested.getLoanStatus() != null ? requested.getLoanStatus().getCode() : "UNKNOWN");
         return ResponseEntity.status(HttpStatus.CREATED).body(LoanRestMapper.toResponseDTO(requested));
     }
 
-    @GetMapping("/loans/{loanId}")
+    @GetMapping({"/loans/{loanId}", "/loan/{loanId}"})
     public ResponseEntity<LoanResponseDTO> consultLoan(
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId) {
-        
+
+        log.info("Consulta de préstamo: loanId='{}' por usuario='{}'", loanId,
+                authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN");
         Loan loan = new Loan();
         loan.setIdentifier(loanId);
         Loan found = naturalCustomerPort.consultLoan(authenticatedUser, loan);
         return ResponseEntity.ok(LoanRestMapper.toResponseDTO(found));
     }
 
-    @PostMapping("/loans/{loanId}/payments")
+    @PostMapping({"/loans/{loanId}/payments", "/loan/{loanId}/payments"})
     public ResponseEntity<LoanPaymentResponseDTO> registerLoanPayment(
             @AuthenticationPrincipal(expression = "user") User authenticatedUser,
             @PathVariable String loanId,
@@ -122,14 +156,22 @@ public class NaturalCustomerRestController {
         
         Loan loan = new Loan();
         loan.setIdentifier(loanId);
+        BankAccount sourceAccount = null;
+        if (requestDTO.getSourceAccountNumber() != null && !requestDTO.getSourceAccountNumber().isBlank()) {
+            sourceAccount = new BankAccount();
+            sourceAccount.setIdentifier(requestDTO.getSourceAccountNumber());
+        }
+        // La moneda se ajusta a la cuenta origen en el servicio si difiere; por defecto COP.
         Money amount = Money.of(requestDTO.getAmount(), application.domain.valueobjects.Currency.COP);
-        Loan updated = naturalCustomerPort.registerLoanPayment(authenticatedUser, loan, amount);
+        Loan updated = naturalCustomerPort.registerLoanPayment(authenticatedUser, loan, sourceAccount, amount);
         
-        // For now return a simple response
         LoanPaymentResponseDTO response = new LoanPaymentResponseDTO();
-        response.setLoanId(loanId);
+        response.setLoanId(updated.getIdentifier() != null ? updated.getIdentifier() : loanId);
         response.setAmountPaid(requestDTO.getAmount());
         response.setPaymentDate(java.time.LocalDateTime.now());
+        log.info("Pago de préstamo OK: loanId='{}' amount='{}' por='{}'", response.getLoanId(),
+                requestDTO.getAmount(),
+                authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN");
         return ResponseEntity.ok(response);
     }
 

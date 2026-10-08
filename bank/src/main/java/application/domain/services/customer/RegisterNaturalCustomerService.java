@@ -5,7 +5,6 @@ import application.domain.exceptions.InvalidCustomerException;
 import application.domain.models.NaturalCustomer;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.RegisterNaturalCustomerUseCase;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.AuthorizeCustomerRegistrationService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -28,13 +27,12 @@ import java.util.Map;
  */
 @Service
 @RequiredArgsConstructor
-public class RegisterNaturalCustomerService implements RegisterNaturalCustomerUseCase {
+public class RegisterNaturalCustomerService {
 
     private final CustomerRepositoryPort customerRepositoryPort;
     private final AuthorizeCustomerRegistrationService authorizeCustomerRegistrationService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public NaturalCustomer registerNaturalCustomer(User user, NaturalCustomer customer) {
         validateInput(customer);
         validateIdentificationUniqueness(customer);

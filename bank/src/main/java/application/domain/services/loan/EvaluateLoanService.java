@@ -6,7 +6,6 @@ import application.domain.exceptions.InvalidLoanStatusException;
 import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.models.Loan;
-import application.domain.ports.in.EvaluateLoanUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.LoanRepositoryPort;
@@ -28,13 +27,12 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class EvaluateLoanService implements EvaluateLoanUseCase {
+public class EvaluateLoanService {
 
     private final LoanRepositoryPort loanRepositoryPort;
     private final CustomerRepositoryPort customerRepositoryPort;
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
 
-    @Override
     public ApprovalDecision evaluate(Loan loan) {
         Loan stored = requireAuthoritativeLoan(loan);
         if (!LoanStatus.UNDER_REVIEW.equals(stored.getLoanStatus())) {

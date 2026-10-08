@@ -8,7 +8,6 @@ import application.domain.models.Customer;
 import application.domain.models.NaturalCustomer;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.RegisterBusinessCustomerUseCase;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.AuthorizeCustomerRegistrationService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -35,13 +34,12 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class RegisterBusinessCustomerService implements RegisterBusinessCustomerUseCase {
+public class RegisterBusinessCustomerService {
 
     private final CustomerRepositoryPort customerRepositoryPort;
     private final AuthorizeCustomerRegistrationService authorizeCustomerRegistrationService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public BusinessCustomer registerBusinessCustomer(User user, BusinessCustomer customer) {
         validateInput(customer);
         validateLegalRepresentativePresent(customer);

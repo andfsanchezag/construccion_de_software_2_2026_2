@@ -5,7 +5,6 @@ import application.domain.exceptions.UnauthorizedOperationException;
 import application.domain.models.Loan;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.RejectLoanUseCase;
 import application.domain.ports.out.LoanRepositoryPort;
 import application.domain.services.authorization.ValidateInternalAnalystAuthorizationService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -28,13 +27,12 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class RejectLoanService implements RejectLoanUseCase {
+public class RejectLoanService {
 
     private final LoanRepositoryPort loanRepositoryPort;
     private final ValidateInternalAnalystAuthorizationService validateInternalAnalystAuthorizationService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public Loan reject(User user, Loan loan) {
         validateRequestingUser(user);
         Loan stored = requireAuthoritativeLoan(loan);

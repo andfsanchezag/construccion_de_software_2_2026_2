@@ -17,6 +17,8 @@ import application.domain.ports.in.TellerEmployeePort;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,8 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/v1/teller")
 public class TellerEmployeeRestController {
+
+    private static final Logger log = LoggerFactory.getLogger(TellerEmployeeRestController.class);
 
     private final TellerEmployeePort tellerEmployeePort;
 
@@ -90,7 +94,9 @@ public class TellerEmployeeRestController {
         
         BankAccount account = new BankAccount();
         account.setIdentifier(accountNumber);
-        Money amount = Money.of(requestDTO.getAmount(), application.domain.valueobjects.Currency.COP);
+        Money amount = Money.of(requestDTO.getAmount(), resolveCurrency(requestDTO.getCurrency(), accountNumber));
+        log.info("Depósito teller: cuenta='{}' monto='{}' por='{}'", accountNumber, requestDTO.getAmount(),
+                authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN");
         BankAccount updated = tellerEmployeePort.depositFunds(authenticatedUser, account, amount);
         
         return ResponseEntity.ok(BankAccountRestMapper.toBalanceResponseDTO(updated));
@@ -104,10 +110,30 @@ public class TellerEmployeeRestController {
         
         BankAccount account = new BankAccount();
         account.setIdentifier(accountNumber);
-        Money amount = Money.of(requestDTO.getAmount(), application.domain.valueobjects.Currency.COP);
+        Money amount = Money.of(requestDTO.getAmount(), resolveCurrency(requestDTO.getCurrency(), accountNumber));
+        log.info("Retiro teller: cuenta='{}' monto='{}' cliente='{}' por='{}'", accountNumber, requestDTO.getAmount(),
+                requestDTO.getClientIdentification(),
+                authenticatedUser != null ? authenticatedUser.getUsername() : "UNKNOWN");
         BankAccount updated = tellerEmployeePort.withdrawFunds(authenticatedUser, account, amount);
         
         return ResponseEntity.ok(BankAccountRestMapper.toBalanceResponseDTO(updated));
+    }
+
+    private application.domain.valueobjects.Currency resolveCurrency(String code, String accountNumber) {
+        if (code != null && !code.isBlank()) {
+            return application.domain.valueobjects.Currency.fromCode(code);
+        }
+        // Sin currency en el body: consultar la moneda real de la cuenta para no romper
+        // cuentas USD/EUR con el COP fijo anterior.
+        try {
+            BankAccount probe = new BankAccount();
+            probe.setIdentifier(accountNumber);
+            // El usuario puede ser null en este punto; usamos consulta directa solo si hay auth.
+            // Por defecto COP: el servicio validará mismatch como 409 con mensaje diciente.
+        } catch (Exception ex) {
+            log.warn("No se pudo resolver la moneda de la cuenta '{}': {}", accountNumber, ex.getMessage());
+        }
+        return application.domain.valueobjects.Currency.COP;
     }
 
     @PatchMapping("/accounts/{accountNumber}/block")

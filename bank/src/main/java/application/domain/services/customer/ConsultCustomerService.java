@@ -4,7 +4,6 @@ import application.domain.exceptions.CustomerNotFoundException;
 import application.domain.exceptions.InvalidCustomerException;
 import application.domain.models.Customer;
 import application.domain.models.User;
-import application.domain.ports.in.ConsultCustomerUseCase;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.AuthorizeCustomerOperationService;
 import lombok.RequiredArgsConstructor;
@@ -23,12 +22,11 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class ConsultCustomerService implements ConsultCustomerUseCase {
+public class ConsultCustomerService {
 
     private final CustomerRepositoryPort customerRepositoryPort;
     private final AuthorizeCustomerOperationService authorizeCustomerOperationService;
 
-    @Override
     public Customer consultCustomer(User user, Customer customer) {
         validateInput(customer);
         Customer persisted = requireExistingCustomer(customer);

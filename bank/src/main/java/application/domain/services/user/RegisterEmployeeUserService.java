@@ -2,7 +2,6 @@ package application.domain.services.user;
 
 import application.domain.exceptions.DomainException;
 import application.domain.models.User;
-import application.domain.ports.in.RegisterEmployeeUserUseCase;
 import application.domain.ports.out.PasswordServicePort;
 import application.domain.ports.out.UserRepositoryPort;
 import application.domain.services.authorization.ValidateInternalAnalystAuthorizationService;
@@ -21,13 +20,12 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class RegisterEmployeeUserService implements RegisterEmployeeUserUseCase {
+public class RegisterEmployeeUserService {
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordServicePort passwordServicePort;
     private final ValidateInternalAnalystAuthorizationService validateInternalAnalystAuthorizationService;
 
-    @Override
     public User registerEmployeeUser(User requestingUser, User employee) {
         validateInput(employee);
         employee.ensureRegistrationDataComplete();

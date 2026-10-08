@@ -2,7 +2,6 @@ package application.domain.services.user;
 
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.User;
-import application.domain.ports.in.ChangeUserStatusUseCase;
 import application.domain.ports.out.UserRepositoryPort;
 import application.domain.services.authorization.AuthorizeChangeUserStatusService;
 import java.util.Optional;
@@ -22,12 +21,11 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class ChangeUserStatusService implements ChangeUserStatusUseCase {
+public class ChangeUserStatusService {
 
     private final UserRepositoryPort userRepositoryPort;
     private final AuthorizeChangeUserStatusService authorizeChangeUserStatusService;
 
-    @Override
     public User changeUserStatus(User requestingUser, User user) {
         validateInput(user);
         User stored = requireExistingUser(user);

@@ -4,7 +4,6 @@ import application.domain.exceptions.EntityNotFoundException;
 import application.domain.exceptions.UnauthorizedOperationException;
 import application.domain.models.BankAccount;
 import application.domain.models.User;
-import application.domain.ports.in.ConsultAccountBalanceUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
 import application.domain.valueobjects.Money;
@@ -16,12 +15,11 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class ConsultAccountBalanceService implements ConsultAccountBalanceUseCase {
+public class ConsultAccountBalanceService {
 
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
 
-    @Override
     public Money consultBalance(User requestingUser, BankAccount account) {
         validateUser(requestingUser);
 

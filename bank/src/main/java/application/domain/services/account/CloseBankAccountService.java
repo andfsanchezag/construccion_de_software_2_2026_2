@@ -5,7 +5,6 @@ import application.domain.exceptions.UnauthorizedOperationException;
 import application.domain.models.BankAccount;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.CloseBankAccountUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -22,13 +21,12 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class CloseBankAccountService implements CloseBankAccountUseCase {
+public class CloseBankAccountService {
 
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public BankAccount close(User requestingUser, BankAccount account) {
         validateUser(requestingUser);
 

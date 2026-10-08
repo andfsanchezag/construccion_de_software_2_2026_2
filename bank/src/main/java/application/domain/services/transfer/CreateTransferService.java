@@ -16,6 +16,8 @@ import application.domain.valueobjects.AccountStatus;
 import application.domain.valueobjects.OperationType;
 import lombok.RequiredArgsConstructor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +28,8 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class CreateTransferService {
+
+    private static final Logger log = LoggerFactory.getLogger(CreateTransferService.class);
 
     private final TransferRepositoryPort transferRepositoryPort;
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
@@ -51,9 +55,19 @@ public class CreateTransferService {
         }
 
         BankAccount source = bankAccountRepositoryPort.findByIdentifier(transfer.getSourceAccount())
-                .orElseThrow(() -> new EntityNotFoundException("Source account"));
+                .orElseThrow(() -> {
+                    log.warn("Cuenta origen no encontrada: sourceAccount='{}'. Verifique 'bank_accounts'.",
+                            transfer.getSourceAccount() != null ? transfer.getSourceAccount().getIdentifier() : null);
+                    return new EntityNotFoundException("Source account",
+                            transfer.getSourceAccount() != null ? transfer.getSourceAccount().getIdentifier() : null);
+                });
         BankAccount destination = bankAccountRepositoryPort.findByIdentifier(transfer.getDestinationAccount())
-                .orElseThrow(() -> new EntityNotFoundException("Destination account"));
+                .orElseThrow(() -> {
+                    log.warn("Cuenta destino no encontrada: destinationAccount='{}'. Verifique 'bank_accounts'.",
+                            transfer.getDestinationAccount() != null ? transfer.getDestinationAccount().getIdentifier() : null);
+                    return new EntityNotFoundException("Destination account",
+                            transfer.getDestinationAccount() != null ? transfer.getDestinationAccount().getIdentifier() : null);
+                });
         validateAccounts(source, destination, transfer.getAmount());
         if (source.getOwner() == null || customer.getIdentification() == null
                 || !customer.getIdentification().equals(source.getOwner().getIdentification())) {

@@ -7,7 +7,6 @@ import application.domain.models.BusinessCustomer;
 import application.domain.models.Customer;
 import application.domain.models.NaturalCustomer;
 import application.domain.models.User;
-import application.domain.ports.in.RegisterCustomerUserUseCase;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.PasswordServicePort;
 import application.domain.ports.out.UserRepositoryPort;
@@ -29,13 +28,12 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class RegisterCustomerUserService implements RegisterCustomerUserUseCase {
+public class RegisterCustomerUserService {
 
     private final UserRepositoryPort userRepositoryPort;
     private final CustomerRepositoryPort customerRepositoryPort;
     private final PasswordServicePort passwordServicePort;
 
-    @Override
     public User registerCustomerUser(User requestingUser, User user) {
         Customer resolvedCustomer = resolveCustomerAssociation(user);
         validateRoleCompatibility(user.getRole(), resolvedCustomer);
@@ -62,7 +60,9 @@ public class RegisterCustomerUserService implements RegisterCustomerUserUseCase 
     private void validateRoleCompatibility(SystemRole role, Customer customer) {
         boolean compatible =
                 (customer instanceof NaturalCustomer && SystemRole.NATURAL_CUSTOMER.equals(role))
-                        || (customer instanceof BusinessCustomer && SystemRole.BUSINESS_CUSTOMER.equals(role));
+                        || (customer instanceof BusinessCustomer && SystemRole.BUSINESS_CUSTOMER.equals(role))
+                        || (customer instanceof BusinessCustomer && SystemRole.BUSINESS_OPERATOR.equals(role))
+                        || (customer instanceof BusinessCustomer && SystemRole.BUSINESS_SUPERVISOR.equals(role));
         if (!compatible) {
             throw new DomainException(
                     "Role " + (role == null ? "UNDEFINED" : role.getCode())

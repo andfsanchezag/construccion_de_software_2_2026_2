@@ -12,7 +12,6 @@ import application.domain.exceptions.InvalidLoanTypeException;
 import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.models.Loan;
-import application.domain.ports.in.ValidateLoanEligibilityUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.valueobjects.AccountStatus;
@@ -33,12 +32,11 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class ValidateLoanEligibilityService implements ValidateLoanEligibilityUseCase {
+public class ValidateLoanEligibilityService {
 
     private final CustomerRepositoryPort customerRepositoryPort;
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
 
-    @Override
     public boolean validateEligibility(Loan loan) {
         if (loan == null) {
             throw new InvalidLoanException("Loan must be provided.");

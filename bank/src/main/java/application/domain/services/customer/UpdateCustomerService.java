@@ -5,7 +5,6 @@ import application.domain.exceptions.InvalidCustomerException;
 import application.domain.models.Customer;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.UpdateCustomerUseCase;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.services.authorization.AuthorizeCustomerOperationService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -30,13 +29,12 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class UpdateCustomerService implements UpdateCustomerUseCase {
+public class UpdateCustomerService {
 
     private final CustomerRepositoryPort customerRepositoryPort;
     private final AuthorizeCustomerOperationService authorizeCustomerOperationService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public Customer updateCustomer(User user, Customer customer) {
         validateInput(customer);
         Customer existing = requireExistingCustomer(customer);

@@ -3,7 +3,6 @@ package application.domain.services.user;
 import application.domain.exceptions.DomainException;
 import application.domain.exceptions.EntityNotFoundException;
 import application.domain.models.User;
-import application.domain.ports.in.ChangeUserPasswordUseCase;
 import application.domain.ports.out.PasswordServicePort;
 import application.domain.ports.out.UserRepositoryPort;
 import application.domain.valueobjects.UserStatus;
@@ -21,12 +20,11 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class ChangeUserPasswordService implements ChangeUserPasswordUseCase {
+public class ChangeUserPasswordService {
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordServicePort passwordServicePort;
 
-    @Override
     public void changePassword(User user) {
         if (user == null) {
             throw new DomainException("User must be provided.");

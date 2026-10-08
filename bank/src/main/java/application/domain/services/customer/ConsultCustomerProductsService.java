@@ -8,7 +8,6 @@ import application.domain.models.CustomerProducts;
 import application.domain.models.Loan;
 import application.domain.models.Transfer;
 import application.domain.models.User;
-import application.domain.ports.in.ConsultCustomerProductsUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.ports.out.CustomerRepositoryPort;
 import application.domain.ports.out.LoanRepositoryPort;
@@ -35,7 +34,7 @@ import java.util.Set;
  */
 @Service
 @RequiredArgsConstructor
-public class ConsultCustomerProductsService implements ConsultCustomerProductsUseCase {
+public class ConsultCustomerProductsService {
 
     private final CustomerRepositoryPort customerRepositoryPort;
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
@@ -43,7 +42,6 @@ public class ConsultCustomerProductsService implements ConsultCustomerProductsUs
     private final TransferRepositoryPort transferRepositoryPort;
     private final AuthorizeCustomerOperationService authorizeCustomerOperationService;
 
-    @Override
     public CustomerProducts consultCustomerProducts(User user, Customer customer) {
         validateInput(customer);
         Customer persisted = requireExistingCustomer(customer);

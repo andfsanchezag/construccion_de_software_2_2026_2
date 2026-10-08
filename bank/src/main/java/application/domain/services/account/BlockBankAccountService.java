@@ -5,7 +5,6 @@ import application.domain.exceptions.UnauthorizedOperationException;
 import application.domain.models.BankAccount;
 import application.domain.models.Operation;
 import application.domain.models.User;
-import application.domain.ports.in.BlockBankAccountUseCase;
 import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.services.authorization.ValidateUserAuthorizationStatusService;
 import application.domain.services.operation.RegisterOperationAndAuditService;
@@ -22,13 +21,12 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class BlockBankAccountService implements BlockBankAccountUseCase {
+public class BlockBankAccountService {
 
     private final BankAccountRepositoryPort bankAccountRepositoryPort;
     private final ValidateUserAuthorizationStatusService validateUserAuthorizationStatusService;
     private final RegisterOperationAndAuditService registerOperationAndAuditService;
 
-    @Override
     public BankAccount block(User requestingUser, BankAccount account) {
         validateUser(requestingUser);
 

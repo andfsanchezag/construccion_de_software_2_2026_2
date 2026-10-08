@@ -14,6 +14,7 @@ import application.domain.services.customer.ConsultCustomerProductsService;
 import application.domain.services.customer.ConsultCustomerService;
 import application.domain.services.customer.UpdateCustomerService;
 import application.domain.services.loan.ConsultLoanService;
+import application.domain.services.loan.RegisterLoanPaymentService;
 import application.domain.services.loan.RequestLoanService;
 import application.domain.services.operation.ConsultOperationsService;
 import application.domain.services.transfer.CreateTransferService;
@@ -34,6 +35,7 @@ public class NaturalCustomerUseCaseImpl implements NaturalCustomerPort {
     private final ConsultAccountBalanceService consultAccountBalanceService;
     private final RequestLoanService requestLoanService;
     private final ConsultLoanService consultLoanService;
+    private final RegisterLoanPaymentService registerLoanPaymentService;
     private final CreateTransferService createTransferService;
     private final ExecuteTransferService executeTransferService;
     private final ConsultOperationsService consultOperationsService;
@@ -81,9 +83,12 @@ public class NaturalCustomerUseCaseImpl implements NaturalCustomerPort {
 
     @Override
     public Loan registerLoanPayment(User user, Loan loan, application.domain.valueobjects.Money amount) {
-        // This would require a RegisterLoanPaymentService which doesn't exist yet
-        // For now, delegate to the existing service structure
-        throw new UnsupportedOperationException("Loan payment registration not yet implemented");
+        return registerLoanPaymentService.registerPayment(user, loan, null, amount);
+    }
+
+    @Override
+    public Loan registerLoanPayment(User user, Loan loan, BankAccount sourceAccount, application.domain.valueobjects.Money amount) {
+        return registerLoanPaymentService.registerPayment(user, loan, sourceAccount, amount);
     }
 
     @Override

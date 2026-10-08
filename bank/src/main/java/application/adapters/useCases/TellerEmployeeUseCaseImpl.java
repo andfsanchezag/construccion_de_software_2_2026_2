@@ -4,6 +4,7 @@ import application.domain.models.BankAccount;
 import application.domain.models.Customer;
 import application.domain.models.User;
 import application.domain.ports.in.TellerEmployeePort;
+import application.domain.ports.out.BankAccountRepositoryPort;
 import application.domain.services.customer.ConsultCustomerService;
 import application.domain.services.account.BlockBankAccountService;
 import application.domain.services.account.CloseBankAccountService;
@@ -29,6 +30,7 @@ public class TellerEmployeeUseCaseImpl implements TellerEmployeePort {
     private final BlockBankAccountService blockBankAccountService;
     private final UnblockBankAccountService unblockBankAccountService;
     private final CloseBankAccountService closeBankAccountService;
+    private final BankAccountRepositoryPort bankAccountRepositoryPort;
 
     @Override
     public Customer consultCustomer(User user, Customer customer) {
@@ -52,12 +54,24 @@ public class TellerEmployeeUseCaseImpl implements TellerEmployeePort {
 
     @Override
     public BankAccount depositFunds(User user, BankAccount account, application.domain.valueobjects.Money amount) {
-        return depositFundsService.deposit(user, user.getCustomer(), account, amount);
+        // Empleados no tienen customer en el JWT: se resuelve el dueño real de la
+        // cuenta y se pasa explícito al servicio (contrato: employee + customer explícito).
+        Customer customer = user != null ? user.getCustomer() : null;
+        if (customer == null && account != null && account.getIdentifier() != null) {
+            customer = bankAccountRepositoryPort.findByIdentifier(account)
+                    .map(BankAccount::getOwner).orElse(null);
+        }
+        return depositFundsService.deposit(user, customer, account, amount);
     }
 
     @Override
     public BankAccount withdrawFunds(User user, BankAccount account, application.domain.valueobjects.Money amount) {
-        return withdrawFundsService.withdraw(user, user.getCustomer(), account, amount);
+        Customer customer = user != null ? user.getCustomer() : null;
+        if (customer == null && account != null && account.getIdentifier() != null) {
+            customer = bankAccountRepositoryPort.findByIdentifier(account)
+                    .map(BankAccount::getOwner).orElse(null);
+        }
+        return withdrawFundsService.withdraw(user, customer, account, amount);
     }
 
     @Override
