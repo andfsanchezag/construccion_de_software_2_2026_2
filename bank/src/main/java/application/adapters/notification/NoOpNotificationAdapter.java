@@ -1,4 +1,4 @@
-package application.infrastructure.notification;
+package application.adapters.notification;
 
 import application.domain.enums.NotificationChannel;
 import application.domain.models.Customer;

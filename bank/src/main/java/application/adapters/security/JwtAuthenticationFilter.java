@@ -1,5 +1,6 @@
-package application.infrastructure.security;
+package application.adapters.security;
 
+import application.adapters.security.dtos.AuthenticatedUserPrincipal;
 import application.domain.models.User;
 import application.domain.valueobjects.UserStatus;
 import jakarta.servlet.FilterChain;

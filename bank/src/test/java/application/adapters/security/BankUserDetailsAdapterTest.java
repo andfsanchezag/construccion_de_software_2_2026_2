@@ -1,11 +1,13 @@
-package application.infrastructure.security;
+package application.adapters.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import application.adapters.security.dtos.AuthenticatedUserPrincipal;
 import application.domain.models.User;
 import application.domain.ports.out.UserRepositoryPort;
+import application.domain.services.user.LoadAuthenticatedUserService;
 import application.domain.valueobjects.SystemRole;
 import application.domain.valueobjects.UserStatus;
 import java.util.HashMap;
@@ -15,15 +17,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-class BankUserDetailsServiceTest {
+class BankUserDetailsAdapterTest {
 
     private FakeUsers users;
-    private BankUserDetailsService service;
+    private BankUserDetailsAdapter adapter;
 
     @BeforeEach
     void setUp() {
         users = new FakeUsers();
-        service = new BankUserDetailsService(users);
+        adapter = new BankUserDetailsAdapter(new LoadAuthenticatedUserService(users));
     }
 
     @Test
@@ -37,7 +39,7 @@ class BankUserDetailsServiceTest {
         users.save(stored);
 
         AuthenticatedUserPrincipal principal =
-                (AuthenticatedUserPrincipal) service.loadUserByUsername("11");
+                (AuthenticatedUserPrincipal) adapter.loadUserByUsername("11");
 
         assertEquals(11, principal.getUser().getUserId());
         assertEquals("teller1", principal.getUsername());
@@ -49,15 +51,15 @@ class BankUserDetailsServiceTest {
     @Test
     void rejectsUnknownUsers() {
         assertThrows(UsernameNotFoundException.class,
-                () -> service.loadUserByUsername("999"));
+                () -> adapter.loadUserByUsername("999"));
     }
 
     @Test
     void rejectsInvalidSubjects() {
         assertThrows(UsernameNotFoundException.class,
-                () -> service.loadUserByUsername("not-a-subject"));
+                () -> adapter.loadUserByUsername("not-a-subject"));
         assertThrows(UsernameNotFoundException.class,
-                () -> service.loadUserByUsername(null));
+                () -> adapter.loadUserByUsername(null));
     }
 
     static class FakeUsers implements UserRepositoryPort {

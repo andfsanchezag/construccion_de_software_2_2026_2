@@ -1,4 +1,4 @@
-package application.infrastructure.security;
+package application.adapters.security;
 
 import application.domain.ports.out.PasswordServicePort;
 import lombok.RequiredArgsConstructor;

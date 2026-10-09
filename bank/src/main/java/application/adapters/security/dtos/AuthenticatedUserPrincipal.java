@@ -1,4 +1,4 @@
-package application.infrastructure.security;
+package application.adapters.security.dtos;
 
 import application.domain.models.User;
 import application.domain.valueobjects.UserStatus;
@@ -12,7 +12,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Spring Security principal wrapping the {@link User} rebuilt from the JWT
- * claims on each request (see {@link JwtProvider#reconstructUser(String)}).
+ * claims on each request (see
+ * {@code application.adapters.security.JwtProvider#reconstructUser(String)}).
  *
  * <p>Spring Security types remain outside {@code domain/}: this adapter is the
  * only place where the domain user meets Spring's authentication model. Role

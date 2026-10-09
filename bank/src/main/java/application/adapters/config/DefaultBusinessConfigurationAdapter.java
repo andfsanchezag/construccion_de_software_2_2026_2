@@ -1,4 +1,4 @@
-package application.infrastructure.config;
+package application.adapters.config;
 
 import application.domain.ports.out.BusinessConfigurationPort;
 import org.springframework.beans.factory.annotation.Value;
