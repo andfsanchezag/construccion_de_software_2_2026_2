@@ -30,11 +30,14 @@ invalidación de sesiones, persistencia relacional en **MySQL** y auditoría en
 │   └── src/main/java/application/
 │       ├── domain/        # Núcleo puro: models, valueobjects, enums, exceptions,
 │       │                  #   ports/in (8 roles + acceso público), ports/out, services
-│       ├── adapters/      # persistence (jpa, mongodb), rest (controllers, dtos,
-│       │                  #   mappers, exception), useCases (implementan puertos de entrada)
-│       └── infrastructure/ # security (JWT, BCrypt, CORS), config, notification
+│       ├── adapters/      # rest (controllers, dtos, mappers, exception),
+│       │                  #   useCases (implementan puertos de entrada),
+│       │                  #   persistence (jpa, mongodb), security (JWT, filtro,
+│       │                  #   config, BCrypt, principal), config, notification
+│       └── infrastructure/ # seed (DatabaseSeeder); sin lógica de negocio
 ├── SDD/                   # Especificación: enunciados, arquitectura, dominio,
-│                          #   adapters y el prompt del agente orquestador
+│                          #   adapters, C4 (SDD/C4: niveles 1-4, capas y flujos
+│                          #   por endpoint con diagramas Mermaid) y el prompt orquestador
 ├── docker-compose.yml     # App + MySQL 3306 + MongoDB 27017
 ├── SETUP.md               # Guía paso a paso para ejecutar el proyecto
 └── LICENSE                # MIT
